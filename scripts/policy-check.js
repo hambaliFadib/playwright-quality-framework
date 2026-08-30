@@ -2,7 +2,8 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const plugin = require('eslint-plugin-playwright');
-const { customerSchema } = require('../src/ai/test-data');
+const { z } = require('zod');
+const { generateStructuredData } = require('../src/ai/structured-data');
 const { triageFailure } = require('../src/ai/triage');
 
 const requiredRules = ['no-focused-test', 'no-skipped-test', 'no-wait-for-timeout', 'no-conditional-expect', 'no-force-option', 'expect-expect'];
@@ -33,25 +34,28 @@ if (missing.length) {
   process.exit(1);
 }
 
-const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const eslintArgs = ['eslint', 'tests', 'src', 'scripts', 'demo-app', 'playwright.config.js', 'eslint.config.js'];
-
-execFileSync(npxCommand, eslintArgs, {
+execFileSync(process.execPath, ['scripts/run-eslint.js'], {
   stdio: 'inherit',
-  shell: process.platform === 'win32',
 });
 
-if (customerSchema.safeParse({ name: 'x', email: 'not-an-email' }).success) {
-  console.error('Malformed AI customer data passed schema validation.');
-  process.exit(1);
-}
-
 (async () => {
+  const schema = z.object({ id: z.string().min(1), value: z.string().min(1) });
+  const data = await generateStructuredData({
+    prompt: 'Return neutral structured data.',
+    schema,
+    identity: 'policy-check',
+    provider: async () => ({ id: '', value: '' }),
+    fallback: async () => ({ id: 'fallback', value: 'valid' }),
+  });
+  if (data.id !== 'fallback') {
+    console.error('Malformed AI structured data did not use fallback.');
+    process.exit(1);
+  }
   const triage = await triageFailure({ testName: 'insufficient', playwrightStatus: 'failed', retry: 0 });
   if (triage.classification !== 'INCONCLUSIVE') {
     console.error('Insufficient triage evidence did not return INCONCLUSIVE.');
     process.exit(1);
   }
   console.log(`Verified eslint-plugin-playwright rules: ${requiredRules.join(', ')}`);
-  console.log('Verified malformed AI data rejection and insufficient-evidence triage boundary.');
+  console.log('Verified malformed AI structured-data fallback and insufficient-evidence triage boundary.');
 })();

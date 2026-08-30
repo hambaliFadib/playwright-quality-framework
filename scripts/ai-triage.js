@@ -2,11 +2,11 @@ const fs = require('fs');
 const { triageFailure } = require('../src/ai/triage');
 
 function loadEvidence() {
-  if (process.argv.includes('--demo')) {
+  if (process.argv.includes('--selftest')) {
     return {
-      testName: 'demo failure keeps Playwright failed',
+      testName: 'self-test failure keeps Playwright failed',
       playwrightStatus: 'failed',
-      failureMessage: 'Expected heading Dashboard to be visible',
+      failureMessage: 'Expected application state was not observed',
       stack: 'Error: expect(locator).toBeVisible() failed',
       retry: 0,
     };

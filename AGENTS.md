@@ -35,6 +35,8 @@ Do not invent expected text, expected status, expected database values, expected
 
 For ordinary test automation tasks, the framework itself is frozen.
 
+Normal agent-write scope is primarily `tests/e2e/**`, `src/pages/**`, and `src/data/**`. Modify `src/fixtures/**` only when lifecycle or dependency-injection needs justify it.
+
 Do not normally modify `AGENTS.md`, `policies/**`, `eslint.config.js`, `playwright.config.js`, `.github/workflows/**`, `scripts/policy-*`, `scripts/secret-*`, or architecture-level AI boundaries unless the user explicitly authorizes ARCHITECTURE MAINTENANCE or a verified framework defect requires remediation.
 
 A new test must adapt to the framework. The framework must not be redesigned for each new test.
@@ -51,4 +53,4 @@ TARGET WEB -> Playwright Codegen -> raw recorded flow -> coding agent -> archite
 
 Review generated locators, reuse existing Page Objects, remove duplication, preserve the user flow, add only justified abstractions, and implement supplied expected behavior.
 
-Before changing tests, run `npm run policy:check`. Before final handoff, run `npm run validate`, `npm run policy:demo`, and `npm run demo:triage`.
+Before changing tests, run `npm run policy:check`. Before final handoff, run `npm run validate`, `npm run policy:selftest`, and `npm run triage:selftest`.

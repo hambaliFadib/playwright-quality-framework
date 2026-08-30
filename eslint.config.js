@@ -23,7 +23,7 @@ module.exports = [
     },
   },
   {
-    files: ['tests/e2e/**/*.js', 'examples/policy-violations/**/*.js'],
+    files: ['tests/e2e/**/*.js', '.policy-selftest/tests/e2e/**/*.js'],
     plugins: { playwright },
     rules: {
       ...playwright.configs['flat/recommended'].rules,
@@ -58,7 +58,7 @@ module.exports = [
     },
   },
   {
-    files: ['src/ai/**/*.js'],
+    files: ['src/ai/**/*.js', '.policy-selftest/src/ai/**/*.js'],
     rules: {
       'no-restricted-modules': ['error', { paths: ['@playwright/test'], patterns: ['../pages/*', '../fixtures/*', '../../tests/*'] }],
       'no-restricted-syntax': ['error', { selector: 'CallExpression[callee.name="expect"]', message: 'AI modules must not use Playwright expect or act as a test oracle.' }],

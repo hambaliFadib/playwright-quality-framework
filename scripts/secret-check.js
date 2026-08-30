@@ -32,6 +32,7 @@ const failures = [];
 const scan = filesToScan();
 for (const file of scan.files) {
   if (scan.tracked && deniedPaths.some(pattern => pattern.test(file))) failures.push(`${file}: runtime or secret artifact must not be tracked`);
+  if (!fs.existsSync(path.join(root, file))) continue;
   const text = fs.readFileSync(path.join(root, file), 'utf8');
   for (const pattern of secretPatterns) {
     if (pattern.test(text)) failures.push(`${file}: possible hardcoded secret`);

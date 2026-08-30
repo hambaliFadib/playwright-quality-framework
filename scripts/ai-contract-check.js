@@ -1,28 +1,40 @@
 const assert = require('assert');
-const { generateCustomerWithAI } = require('../src/ai/test-data');
-const { buildCustomerData } = require('../src/data/customer.factory');
+const { z } = require('zod');
+const { generateStructuredData } = require('../src/ai/structured-data');
 const { triageFailure } = require('../src/ai/triage');
 
 async function main() {
-  const validCustomer = await generateCustomerWithAI('valid-branch', async () => ({
-    name: 'QA Valid Branch',
-    email: 'qa-valid-branch@example.test',
-  }));
-  assert.deepStrictEqual(validCustomer, {
-    name: 'QA Valid Branch',
-    email: 'qa-valid-branch@example.test',
+  const schema = z.object({
+    id: z.string().min(1),
+    value: z.string().min(1),
   });
 
-  const invalidCustomer = await generateCustomerWithAI('invalid-branch', async () => ({
-    name: 'x',
-    email: 'bad@example.com',
-  }));
-  assert.strictEqual(invalidCustomer, null);
-
-  const fallbackCustomer = await buildCustomerData('provider-unavailable', async () => {
-    throw new Error('provider unavailable');
+  const validData = await generateStructuredData({
+    prompt: 'Return neutral structured data.',
+    schema,
+    identity: 'valid-branch',
+    provider: async () => ({ id: 'valid-branch', value: 'accepted' }),
+    fallback: async () => ({ id: 'fallback', value: 'unused' }),
   });
-  assert.match(fallbackCustomer.email, /^qa-provider-unavailable@example\.test$/);
+  assert.deepStrictEqual(validData, { id: 'valid-branch', value: 'accepted' });
+
+  const invalidData = await generateStructuredData({
+    prompt: 'Return neutral structured data.',
+    schema,
+    identity: 'invalid-branch',
+    provider: async () => ({ id: '', value: '' }),
+    fallback: async () => ({ id: 'fallback-invalid', value: 'accepted' }),
+  });
+  assert.deepStrictEqual(invalidData, { id: 'fallback-invalid', value: 'accepted' });
+
+  const unavailableData = await generateStructuredData({
+    prompt: 'Return neutral structured data.',
+    schema,
+    identity: 'provider-unavailable',
+    provider: async () => { throw new Error('provider unavailable'); },
+    fallback: async ({ identity }) => ({ id: identity, value: 'fallback' }),
+  });
+  assert.deepStrictEqual(unavailableData, { id: 'provider-unavailable', value: 'fallback' });
 
   const failedEvidence = {
     testName: 'keeps failed status',
@@ -61,7 +73,7 @@ async function main() {
   process.env.AI_BASE_URL = previousBaseUrl;
   process.env.AI_MODEL = previousModel;
 
-  console.log('AI data contract: valid provider accepted, invalid provider rejected, unavailable provider used Faker fallback.');
+  console.log('AI data contract: valid provider accepted, invalid provider rejected, unavailable provider used supplied fallback.');
   console.log('AI triage contract: sufficient evidence returns validated advisory classification, insufficient/unavailable evidence returns INCONCLUSIVE, Playwright status unchanged.');
 }
 

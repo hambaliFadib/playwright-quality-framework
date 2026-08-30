@@ -17,7 +17,7 @@ npm run report
 
 Codegen captures the interaction. The coding agent implements it according to `AGENTS.md`. Playwright remains the deterministic test oracle.
 
-See `docs/DEMO_QUICKSTART.md` for the live-demo workflow.
+See `docs/QUICKSTART.md` for the operator workflow.
 
 ```mermaid
 flowchart TD
@@ -39,8 +39,6 @@ Playwright assertions are the test oracle. AI can provide schema-validated data 
 - `src/pages`: thin Page Objects and locators.
 - `src/data`: collision-safe data factories.
 - `src/ai`: bounded AI data and triage modules.
-- `demo-app`: minimal local AUT for offline validation.
-- `examples/policy-violations`: intentionally bad specs used by `npm run policy:demo`.
 - `scripts`: policy, secret, and triage commands.
 
 ## Setup
@@ -51,6 +49,8 @@ npx playwright install chromium
 ```
 
 Optional `.env` values are shown in `.env.example`. Do not commit `.env` or storage state files.
+
+`BASE_URL` must point to the actual application under test before application E2E specs are added.
 
 ## Commands
 
@@ -63,8 +63,8 @@ Optional `.env` values are shown in `.env.example`. Do not commit `.env` or stor
 - `npm run test:debug`
 - `npm run record -- <URL>`
 - `npm run report`
-- `npm run policy:demo`
-- `npm run demo:triage`
+- `npm run policy:selftest`
+- `npm run triage:selftest`
 - `npm run validate`
 
 ## Policy As Code
@@ -73,11 +73,11 @@ ESLint Flat Config and scripts reject direct `@playwright/test` imports from E2E
 
 ## AI Boundary
 
-AI data must be JSON and pass Zod validation. Invalid or unavailable AI output falls back to Faker. AI triage consumes failure evidence after Playwright runs and returns an advisory classification. `INCONCLUSIVE` is a triage classification, not a Playwright status.
+AI data must be JSON and pass caller-supplied Zod validation. Invalid or unavailable AI output uses the caller-supplied deterministic fallback. AI triage consumes failure evidence after Playwright runs and returns an advisory classification. `INCONCLUSIVE` is a triage classification, not a Playwright status.
 
-## Demos
+## Self-Tests
 
-`npm run policy:demo` proves three bad examples are rejected. `npm run demo:triage` prints a failed Playwright status with advisory triage and does not alter the status.
+`npm run policy:selftest` creates temporary invalid fixtures and proves policy violations are rejected. `npm run triage:selftest` prints a failed Playwright status with advisory triage and does not alter the status.
 
 ## Known Limitations
 

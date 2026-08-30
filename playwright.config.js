@@ -15,7 +15,7 @@ module.exports = defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     browserName: 'chromium',
-    baseURL: process.env.BASE_URL || 'http://127.0.0.1:4173',
+    baseURL: process.env.BASE_URL || undefined,
     actionTimeout: 10_000,
     navigationTimeout: 10_000,
     screenshot: 'only-on-failure',
