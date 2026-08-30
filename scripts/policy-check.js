@@ -33,7 +33,10 @@ if (missing.length) {
   process.exit(1);
 }
 
-execFileSync('npx.cmd', ['eslint', 'tests', 'src', 'scripts', 'demo-app', 'playwright.config.js', 'eslint.config.js'], {
+const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const eslintArgs = ['eslint', 'tests', 'src', 'scripts', 'demo-app', 'playwright.config.js', 'eslint.config.js'];
+
+execFileSync(npxCommand, eslintArgs, {
   stdio: 'inherit',
   shell: process.platform === 'win32',
 });
