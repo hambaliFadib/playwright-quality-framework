@@ -2,6 +2,23 @@
 
 Reusable JavaScript Playwright template for human QA engineers and AI coding agents.
 
+## Fast Workflow
+
+```text
+Record -> Agent -> Validate -> Demo
+```
+
+```powershell
+npm run record -- <URL>
+npm run validate
+npm run test:ui
+npm run report
+```
+
+Codegen captures the interaction. The coding agent implements it according to `AGENTS.md`. Playwright remains the deterministic test oracle.
+
+See `docs/DEMO_QUICKSTART.md` for the live-demo workflow.
+
 ```mermaid
 flowchart TD
   T[tests/e2e] --> F[src/fixtures]
@@ -41,6 +58,11 @@ Optional `.env` values are shown in `.env.example`. Do not commit `.env` or stor
 - `npm run policy:check`
 - `npm run secret:check`
 - `npm run test:e2e`
+- `npm run test:ui`
+- `npm run test:headed`
+- `npm run test:debug`
+- `npm run record -- <URL>`
+- `npm run report`
 - `npm run policy:demo`
 - `npm run demo:triage`
 - `npm run validate`
