@@ -1,0 +1,29 @@
+{
+  "name": "policy-driven-playwright-ai-template",
+  "version": "1.0.0",
+  "description": "Policy-driven Playwright automation template with bounded AI support.",
+  "scripts": {
+    "lint": "eslint tests src scripts demo-app playwright.config.js eslint.config.js",
+    "policy:check": "node scripts/policy-check.js",
+    "contract:ai": "node scripts/ai-contract-check.js",
+    "secret:check": "node scripts/secret-check.js",
+    "test:e2e": "playwright test",
+    "triage": "node scripts/ai-triage.js",
+    "policy:demo": "node scripts/policy-demo.js",
+    "demo:triage": "node scripts/ai-triage.js --demo",
+    "validate": "npm run lint && npm run policy:check && npm run secret:check && npm run test:e2e"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@playwright/test": "^1.62.1",
+    "eslint": "^9.34.0",
+    "eslint-plugin-playwright": "^2.2.2"
+  }
+}
