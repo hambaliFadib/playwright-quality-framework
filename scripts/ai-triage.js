@@ -3,7 +3,62 @@ const { triageFailure } = require('../src/ai/triage');
 
 function stripAnsi(value) {
   if (typeof value !== 'string') return value;
-  return value.replace(/[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g, '');
+
+  let output = '';
+  let index = 0;
+
+  while (index < value.length) {
+    const code = value.charCodeAt(index);
+
+    if (code === 27) {
+      const next = value.charCodeAt(index + 1);
+
+      if (next === 91) {
+        index += 2;
+        while (index < value.length) {
+          const current = value.charCodeAt(index);
+          index += 1;
+          if (current >= 64 && current <= 126) break;
+        }
+        continue;
+      }
+
+      if (next === 93) {
+        index += 2;
+        while (index < value.length) {
+          const current = value.charCodeAt(index);
+          if (current === 7) {
+            index += 1;
+            break;
+          }
+          if (current === 27 && value.charCodeAt(index + 1) === 92) {
+            index += 2;
+            break;
+          }
+          index += 1;
+        }
+        continue;
+      }
+
+      index += Math.min(2, value.length - index);
+      continue;
+    }
+
+    if (code === 155) {
+      index += 1;
+      while (index < value.length) {
+        const current = value.charCodeAt(index);
+        index += 1;
+        if (current >= 64 && current <= 126) break;
+      }
+      continue;
+    }
+
+    output += value[index];
+    index += 1;
+  }
+
+  return output;
 }
 
 function findFirstFailedResult(suites = []) {
