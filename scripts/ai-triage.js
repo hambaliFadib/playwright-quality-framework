@@ -1,8 +1,47 @@
 const fs = require('fs');
 const { triageFailure } = require('../src/ai/triage');
 
-function loadEvidence() {
-  if (process.argv.includes('--selftest')) {
+function stripAnsi(value) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g, '');
+}
+
+function findFirstFailedResult(suites = []) {
+  for (const suite of suites) {
+    for (const spec of suite.specs || []) {
+      for (const test of spec.tests || []) {
+        const result = (test.results || []).find(candidate => candidate.status === 'failed');
+        if (result) return { suite, spec, test, result };
+      }
+    }
+
+    const nested = findFirstFailedResult(suite.suites || []);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function extractEvidence(report) {
+  const failed = findFirstFailedResult(report.suites || []);
+  if (!failed) return { testName: 'unknown', playwrightStatus: 'unknown', retry: 0 };
+
+  const { spec, test, result } = failed;
+  const error = result.error || result.errors?.[0] || {};
+  const failureMessage = error.message || result.errors?.[0]?.message;
+  const stack = error.stack || result.errors?.[0]?.stack || failureMessage;
+
+  return {
+    testName: spec.title || test.title || 'unknown',
+    playwrightStatus: result.status,
+    failureMessage: stripAnsi(failureMessage),
+    stack: stripAnsi(stack),
+    retry: result.retry || 0,
+  };
+}
+
+function loadEvidence(args = process.argv.slice(2)) {
+  if (args.includes('--selftest')) {
     return {
       testName: 'self-test failure keeps Playwright failed',
       playwrightStatus: 'failed',
@@ -11,24 +50,25 @@ function loadEvidence() {
       retry: 0,
     };
   }
-  const file = process.argv[2] || 'artifacts/playwright-results.json';
+
+  const file = args.find(arg => !arg.startsWith('--')) || 'artifacts/playwright-results.json';
   if (!fs.existsSync(file)) return { testName: 'unknown', playwrightStatus: 'unknown', retry: 0 };
+
   const report = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const specs = report.suites?.flatMap(suite => suite.suites || []).flatMap(suite => suite.specs || []) || [];
-  const spec = specs.find(candidate => candidate.tests?.some(test => test.status === 'failed'));
-  const test = spec?.tests?.find(candidate => candidate.status === 'failed');
-  const result = test?.results?.find(candidate => candidate.status === 'failed');
-  return {
-    testName: spec?.title || 'unknown',
-    playwrightStatus: test?.status || 'unknown',
-    failureMessage: result?.error?.message,
-    stack: result?.error?.stack,
-    retry: result?.retry || 0,
-  };
+  return extractEvidence(report);
 }
 
-(async () => {
+async function main() {
   const evidence = loadEvidence();
   const triage = await triageFailure(evidence);
   console.log(JSON.stringify({ playwrightStatus: evidence.playwrightStatus, triage }, null, 2));
-})();
+}
+
+if (require.main === module) {
+  main().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
+}
+
+module.exports = { stripAnsi, findFirstFailedResult, extractEvidence, loadEvidence };
