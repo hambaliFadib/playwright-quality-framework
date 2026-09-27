@@ -6,7 +6,7 @@ Layers:
 - `tests/e2e`: behavior scenarios and deterministic `expect` assertions.
 - `src/fixtures`: fixture gateway, lifecycle, dependency injection, and data injection.
 - `src/pages`: thin Page Objects that own locators and page interactions.
-- `src/data`: collision-safe data factories independent of UI implementation.
+- `src/data`: reusable non-sensitive test input and collision-safe data factories independent of UI implementation.
 - `src/ai`: schema-validated AI data and advisory triage; no assertions or selector healing.
 - `src/core`: reserved for small cross-cutting primitives.
 

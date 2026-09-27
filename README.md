@@ -1,6 +1,6 @@
-# Policy-Driven Playwright AI Automation Template
+# Playwright Quality Framework
 
-Reusable JavaScript Playwright template for human QA engineers and AI coding agents.
+Policy-Driven Test Automation with Deterministic Quality Gates and Bounded AI Assistance.
 
 ## Fast Workflow
 
@@ -37,7 +37,7 @@ Playwright assertions are the test oracle. AI can provide schema-validated data 
 - `tests/e2e`: deterministic scenarios and assertions.
 - `src/fixtures`: approved test entry point and dependency injection.
 - `src/pages`: thin Page Objects and locators.
-- `src/data`: collision-safe data factories.
+- `src/data`: reusable non-sensitive test input and data factories.
 - `src/ai`: bounded AI data and triage modules.
 - `scripts`: policy, secret, and triage commands.
 

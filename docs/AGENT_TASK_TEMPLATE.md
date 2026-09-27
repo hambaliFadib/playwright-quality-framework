@@ -1,19 +1,16 @@
 # Automation Task
 
 Feature:
-<name>
-
-Target:
-<URL or environment>
+<...>
 
 Expected result:
-<business expectation>
-
-Business rules:
-<only if relevant>
+<...>
 
 Test data:
-<only if relevant>
+<...>
+
+Pre-Condition:
+<...>
 
 Codegen / Manual flow:
-<paste here>
+<...>

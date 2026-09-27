@@ -48,6 +48,10 @@ npm run policy:selftest
 
 ## 7. AI Boundary
 
+Playwright owns PASS/FAIL. AI triage is advisory only and never alters test status.
+
+AI provider configuration lives in `.env.ai` (not `.env`). Normal deterministic validation does not require AI. AI must not heal selectors or change expected results.
+
 ```powershell
 npm run triage:selftest
 ```

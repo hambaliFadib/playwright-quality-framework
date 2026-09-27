@@ -1,5 +1,6 @@
 node_modules/
 .env
+.env.ai
 .auth/
 **/storageState.json
 test-results/
