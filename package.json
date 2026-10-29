@@ -16,7 +16,8 @@
     "triage": "node --env-file-if-exists=.env.ai scripts/ai-triage.js",
     "policy:selftest": "node scripts/policy-selftest.js",
     "triage:selftest": "node --env-file-if-exists=.env.ai scripts/ai-triage.js --selftest",
-    "validate": "npm run lint && npm run policy:check && npm run secret:check && npm run test:e2e"
+    "integration:selftest": "node --test tests/integration/pqp-reporter.test.js",
+    "validate": "npm run lint && npm run policy:check && npm run secret:check && npm run integration:selftest && npm run test:e2e"
   },
   "keywords": [],
   "author": "",
