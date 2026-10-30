@@ -10,15 +10,24 @@ const PACKAGE_SOURCE_SHA256 = 'ca7aca8c3f700b5bf99d93486582845dbe348349b866d0dfa
 const SOURCE_ID = 'pqf-playwright-reporter';
 const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
-function createRunCompletedEnvelope({ env = process.env, pid = process.pid, now = new Date() } = {}) {
+// An execution UUID is generated once per reporter instance. This prevents
+// PID reuse and multiple Playwright invocations within one CI job from colliding.
+const EXECUTION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function createRunCompletedEnvelope({ env = process.env, executionId = crypto.randomUUID(), now = new Date() } = {}) {
+  if (!EXECUTION_ID_PATTERN.test(executionId)) throw new Error('EXECUTION_ID_INVALID');
   const workflowId = typeof env.GITHUB_RUN_ID === 'string' && /^\d{1,20}$/.test(env.GITHUB_RUN_ID)
     ? env.GITHUB_RUN_ID
     : null;
   const attempt = typeof env.GITHUB_RUN_ATTEMPT === 'string' && /^\d{1,6}$/.test(env.GITHUB_RUN_ATTEMPT)
     ? env.GITHUB_RUN_ATTEMPT
     : '1';
-  const candidateRunId = workflowId ? `gh-${workflowId}-a${attempt}` : `local-${Number.isSafeInteger(pid) && pid > 0 ? pid : 1}`;
-  const runId = RUN_ID_PATTERN.test(candidateRunId) ? candidateRunId : 'local-1';
+  const runId = workflowId
+    ? `gh-${workflowId}-a${attempt}-${executionId}`
+    : `local-${executionId}`;
+  if (!RUN_ID_PATTERN.test(runId) || `${runId}-completed`.length > 128) {
+    throw new Error('RUN_ID_INVALID');
+  }
 
   return {
     contractVersion: '1.0',
@@ -69,10 +78,10 @@ function safeWrite(write, message) {
   }
 }
 
-function emitRunCompleted({ packageRoot, env = process.env, pid = process.pid, now = new Date(), write = console.log, validator: injectedValidator } = {}) {
+function emitRunCompleted({ packageRoot, env = process.env, executionId = crypto.randomUUID(), now = new Date(), write = console.log, validator: injectedValidator } = {}) {
   try {
     const validator = injectedValidator || loadValidator(packageRoot || env.PQF_EVIDENCE_ENVELOPE_PATH);
-    const envelope = createRunCompletedEnvelope({ env, pid, now });
+    const envelope = createRunCompletedEnvelope({ env, executionId, now });
     const validation = validator.validateEnvelope(envelope);
     if (!validation || validation.ok !== true || !validation.value) {
       safeWrite(write, 'PQF evidence reporter: envelope rejected; event omitted.');
@@ -88,8 +97,11 @@ function emitRunCompleted({ packageRoot, env = process.env, pid = process.pid, n
 }
 
 class PqpEvidenceReporter {
+  constructor() {
+    this.executionId = crypto.randomUUID();
+  }
   onEnd() {
-    emitRunCompleted();
+    emitRunCompleted({ executionId: this.executionId });
   }
 }
 

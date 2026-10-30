@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -36,15 +38,15 @@ test('PQP reporter is disabled unless the opt-in value is exactly true', () => {
 test('run.completed envelope contains only the allowlisted contract fields', () => {
   const envelope = Reporter.createRunCompletedEnvelope({
     env: { GITHUB_RUN_ID: '12345', GITHUB_RUN_ATTEMPT: '2' },
-    pid: 999,
+    executionId: '11111111-1111-4111-8111-111111111111',
     now: fixedDate,
   });
   assert.deepEqual(Object.keys(envelope), ['contractVersion', 'eventId', 'eventType', 'runId', 'occurredAt', 'source']);
   assert.deepEqual(envelope, {
     contractVersion: '1.0',
-    eventId: 'gh-12345-a2-completed',
+    eventId: 'gh-12345-a2-11111111-1111-4111-8111-111111111111-completed',
     eventType: 'run.completed',
-    runId: 'gh-12345-a2',
+    runId: 'gh-12345-a2-11111111-1111-4111-8111-111111111111',
     occurredAt: '2026-10-29T16:00:00.123Z',
     source: 'pqf-playwright-reporter',
   });
@@ -52,17 +54,36 @@ test('run.completed envelope contains only the allowlisted contract fields', () 
 
 test('event identity is stable for the same CI run and attempt', () => {
   const env = { GITHUB_RUN_ID: '12345', GITHUB_RUN_ATTEMPT: '2' };
-  const first = Reporter.createRunCompletedEnvelope({ env, now: fixedDate });
-  const second = Reporter.createRunCompletedEnvelope({ env, now: new Date('2026-10-29T16:01:00.456Z') });
+  const first = Reporter.createRunCompletedEnvelope({ env, executionId: '11111111-1111-4111-8111-111111111111', now: fixedDate });
+  const second = Reporter.createRunCompletedEnvelope({ env, executionId: '11111111-1111-4111-8111-111111111111', now: new Date('2026-10-29T16:01:00.456Z') });
   assert.equal(first.eventId, second.eventId);
   assert.equal(first.runId, second.runId);
   assert.notEqual(first.occurredAt, second.occurredAt);
 });
 
 test('local run identity does not include arbitrary environment strings', () => {
-  const envelope = Reporter.createRunCompletedEnvelope({ env: { GITHUB_RUN_ID: 'bad/id\nsecret' }, pid: 321, now: fixedDate });
-  assert.equal(envelope.runId, 'local-321');
-  assert.equal(envelope.eventId, 'local-321-completed');
+  const envelope = Reporter.createRunCompletedEnvelope({
+    env: { GITHUB_RUN_ID: 'bad/id\nsecret' }, executionId: '11111111-1111-4111-8111-111111111111', now: fixedDate,
+  });
+  assert.equal(envelope.runId, 'local-11111111-1111-4111-8111-111111111111');
+  assert.equal(envelope.eventId, 'local-11111111-1111-4111-8111-111111111111-completed');
+});
+
+test('separate local executions cannot collide due to PID reuse', () => {
+  const a = new Reporter();
+  const b = new Reporter();
+  assert.notEqual(a.executionId, b.executionId);
+  const first = Reporter.createRunCompletedEnvelope({ env: {}, executionId: a.executionId, now: fixedDate });
+  const second = Reporter.createRunCompletedEnvelope({ env: {}, executionId: b.executionId, now: fixedDate });
+  assert.notEqual(first.runId, second.runId);
+  assert.notEqual(first.eventId, second.eventId);
+});
+
+test('two reporter invocations inside the same CI attempt retain distinct identities', () => {
+  const env = { GITHUB_RUN_ID: '1001', GITHUB_RUN_ATTEMPT: '1' };
+  const first = Reporter.createRunCompletedEnvelope({ env, executionId: crypto.randomUUID(), now: fixedDate });
+  const second = Reporter.createRunCompletedEnvelope({ env, executionId: crypto.randomUUID(), now: fixedDate });
+  assert.notEqual(first.eventId, second.eventId);
 });
 
 test('valid event is emitted as metadata only and does not mutate a Playwright result', () => {
@@ -122,4 +143,12 @@ test('loader rejects a package with an unexpected identity or version', t => {
 test('reporter lifecycle is best effort and never throws when package path is absent', () => {
   const reporter = new Reporter();
   assert.doesNotThrow(() => reporter.onEnd({ status: 'failed', errors: [{ message: 'must not be serialized' }] }));
+});
+
+test('explicit private-package qualification refuses to run without a tarball', () => {
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', '..', 'scripts', 'qualify-pqp-tarball.js')], {
+    encoding: 'utf8', timeout: 10000,
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /PQP_QUALIFICATION_TARBALL_REQUIRED/);
 });
