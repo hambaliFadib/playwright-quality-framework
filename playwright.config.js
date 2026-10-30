@@ -1,4 +1,17 @@
 const { defineConfig, devices } = require('@playwright/test');
+const { isPqpReporterEnabled, hasValidOptInValue } = require('./src/integration/pqp-reporter-config');
+
+const pqpEvidenceOptIn = process.env.PQF_EVIDENCE_ENABLED;
+if (!hasValidOptInValue(pqpEvidenceOptIn)) {
+  console.error('PQF_EVIDENCE_ENABLED must be "true" or "false"; PQP integration remains disabled.');
+}
+
+const reporters = [
+  ['list'],
+  ['html', { outputFolder: 'playwright-report', open: 'never' }],
+  ['json', { outputFile: 'artifacts/playwright-results.json' }],
+];
+if (isPqpReporterEnabled(pqpEvidenceOptIn)) reporters.push(['./src/integration/pqp-reporter.js']);
 
 const requestedBrowsers = new Set(
   (process.env.BROWSERS || '')
@@ -26,11 +39,7 @@ module.exports = defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   fullyParallel: false,
-  reporter: [
-    ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'artifacts/playwright-results.json' }],
-  ],
+  reporter: reporters,
   use: {
     ...devices['Desktop Chrome'],
     browserName: 'chromium',
