@@ -43,7 +43,7 @@ function qualify(tarball) {
     });
     assert.equal(emitted, true, 'PQP_QUALIFICATION_EMIT_REJECTED');
     assert.equal(output.length, 1);
-    assert.match(output[0], /^\\[pqf-evidence\\] /);
+    assert.match(output[0], /^\[pqf-evidence\] /);
     const envelope = JSON.parse(output[0].slice('[pqf-evidence] '.length));
     assert.equal(envelope.eventType, 'run.completed');
     assert.equal(envelope.evidenceRef, undefined);
@@ -52,10 +52,10 @@ function qualify(tarball) {
     // Keep the approved identity, then tamper with the actual source file.
     // The production loader must fail before requiring changed code.
     const sourcePath = path.join(root, 'src', 'index.cjs');
-    fs.appendFileSync(sourcePath, '\\n// qualification tampering canary\\n');
+    fs.appendFileSync(sourcePath, '\n// qualification tampering canary\n');
     assert.throws(() => Reporter.loadValidator(root), /PACKAGE_INTEGRITY_INVALID/);
 
-    process.stdout.write('PQP_ISOLATED_TARBALL_QUALIFICATION_PASS\\n');
+    process.stdout.write('PQP_ISOLATED_TARBALL_QUALIFICATION_PASS\n');
   } finally {
     fs.rmSync(consumer, { recursive: true, force: true });
   }
@@ -75,7 +75,7 @@ if (require.main === module) {
       'PQP_QUALIFICATION_EMIT_REJECTED',
     ]);
     const message = allowed.has(error.message) ? error.message : 'PQP_QUALIFICATION_FAILED';
-    process.stderr.write(message + '\\n');
+    process.stderr.write(message + '\n');
     process.exitCode = 2;
   }
 }
