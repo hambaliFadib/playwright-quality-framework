@@ -1,8 +1,8 @@
 # Phase 3F — Real Playwright Process Qualification
 
 **Status:** Harness candidate; not qualified until the authorized private tarball run passes.
-**PQP source baseline:** \`bb7a25bb7299c4a5ff0e41e4dee58984aa914f92\` (3E LF attributes merged).
-**PQF base:** \`ad8f32021d86f871f4788886ff6a9cabb41ce344\`.
+**PQP source baseline:** `bb7a25bb7299c4a5ff0e41e4dee58984aa914f92` (3E LF attributes merged).
+**PQF base:** `ad8f32021d86f871f4788886ff6a9cabb41ce344`.
 
 Phase 3D qualified the loader/validator directly. Phase 3F invokes the **real
 Playwright CLI** with the production configuration opt-in decision and reporter
@@ -12,9 +12,9 @@ class, without requiring a browser or an external AUT.
 
 Use an authorized local PQP checkout with the latest 3E merged revision; create
 a **fresh** detached worktree, with LF enforced by package-scoped
-\`.gitattributes\`. Do not reuse the CRLF-polluted old 3D worktree.
+`.gitattributes`. Do not reuse the CRLF-polluted old 3D worktree.
 
-\`\`\`powershell
+```powershell
 $PqpRepo = "D:\Quality Assurance\Riset\playwright-quality-packages"
 $PqfRepo = "D:\Quality Assurance\Riset\playwright-quality-framework"
 $PqpCommit = "bb7a25bb7299c4a5ff0e41e4dee58984aa914f92"
@@ -32,7 +32,7 @@ $Actual = (Get-FileHash -LiteralPath $SourceFile -Algorithm SHA256).Hash.ToLower
 if ($Actual -ne $Expected) { throw "Fresh Windows LF checkout integrity failed" }
 $PackJson = npm pack (Join-Path $PqpFresh "packages\evidence-envelope") --pack-destination $Artifacts --ignore-scripts --json
 if ($LASTEXITCODE -ne 0) { throw "PQP npm pack failed" }
-$Pack = ($PackJson -join "\`n") | ConvertFrom-Json
+$Pack = ($PackJson -join "`n") | ConvertFrom-Json
 $Tarball = Join-Path $Artifacts $Pack[0].filename
 if (!(Test-Path -LiteralPath $Tarball -PathType Leaf)) { throw "Tarball unavailable" }
 # Use a local PQF checkout at the reviewed 3F PR head; after merge use merged main.
@@ -45,11 +45,11 @@ try {
 } finally {
     Pop-Location
 }
-\`\`\`
+```
 
 ## Acceptance
 
-- Fresh Windows worktree with \`core.autocrlf=true\` preserves source SHA-256.
+- Fresh Windows worktree with `core.autocrlf=true` preserves source SHA-256.
 - Package installs offline and production PQF loader validates the real source.
 - Reporter disabled: normal Playwright success, **zero evidence events**.
 - Reporter enabled: normal Playwright success, **one valid run.completed event**.
@@ -59,7 +59,7 @@ try {
 - Public CI runs no private-package qualification and has no private token or tarball.
 
 Expected local marker:
-\`PQP_PQF_PLAYWRIGHT_E2E_QUALIFICATION_PASS\`.
+`PQP_PQF_PLAYWRIGHT_E2E_QUALIFICATION_PASS`.
 
 Record PQP and PQF exact commit hashes, Node/npm versions, SHA-256 tarball,
 exit code, and marker in **private evidence only**. A harness commit alone
