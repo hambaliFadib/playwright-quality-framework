@@ -19,6 +19,7 @@
     "integration:selftest": "node --test tests/integration/*.test.js",
     "integration:qualify": "node scripts/qualify-pqp-tarball.js",
     "integration:qualify:full": "node scripts/qualify-pqp-integration.js",
+    "integration:qualify:e2e": "node scripts/qualify-pqp-e2e.js",
     "validate": "npm run lint && npm run policy:check && npm run secret:check && npm run integration:selftest && npm run test:e2e"
   },
   "keywords": [],
