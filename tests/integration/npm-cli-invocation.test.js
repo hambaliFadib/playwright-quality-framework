@@ -36,7 +36,7 @@ test('npm CLI launcher uses the current Node executable and npm lifecycle path',
 
 test('npm CLI launcher rejects missing or relative npm CLI paths', () => {
   assert.throws(
-    () => createNpmCliInvocation(['install'], { platform: 'win32', nodeExecutable: 'C:\\node.exe' }),
+    () => createNpmCliInvocation(['install'], { platform: 'win32', nodeExecutable: 'C:\\node.exe', npmCli: null }),
     error => error.message === 'NPM_CLI_PATH_UNAVAILABLE',
   );
   assert.throws(
@@ -44,6 +44,14 @@ test('npm CLI launcher rejects missing or relative npm CLI paths', () => {
       platform: 'win32',
       nodeExecutable: 'C:\\node.exe',
       npmCli: 'npm.cmd',
+    }),
+    error => error.message === 'NPM_CLI_PATH_UNAVAILABLE',
+  );
+  assert.throws(
+    () => createNpmCliInvocation(['install'], {
+      platform: 'win32',
+      nodeExecutable: 'C:\\node.exe',
+      npmCli: '/opt/node/npm-cli.js',
     }),
     error => error.message === 'NPM_CLI_PATH_UNAVAILABLE',
   );

@@ -6,7 +6,14 @@ function createNpmCliInvocation(args, options = {}) {
   const platform = options.platform || process.platform;
   const nodeExecutable = options.nodeExecutable || process.execPath;
   const npmCli = options.npmCli === undefined ? process.env.npm_execpath : options.npmCli;
-  const isAbsolute = platform === 'win32' ? path.win32.isAbsolute : path.posix.isAbsolute;
+  const isAbsolute = platform === 'win32'
+    ? value => {
+      if (!path.win32.isAbsolute(value)) return false;
+      const driveQualified = /^[A-Za-z]:[\\/]/.test(value);
+      const uncQualified = /^(?:\\\\|\/\/)[^\\/]+[\\/][^\\/]+(?:[\\/]|$)/.test(value);
+      return driveQualified || uncQualified;
+    }
+    : path.posix.isAbsolute;
 
   if (!Array.isArray(args) || args.some(argument => typeof argument !== 'string')) {
     throw new Error('NPM_ARGUMENTS_INVALID');
