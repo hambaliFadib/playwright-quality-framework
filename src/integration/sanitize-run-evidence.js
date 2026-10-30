@@ -2,7 +2,7 @@
 
 const ALLOWED_STATUSES = new Set(['passed', 'failed', 'timedOut', 'interrupted']);
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-const ISO_MILLIS_UTC = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/;
+const ISO_MILLIS_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 function sanitizeRunEvidence(input) {
