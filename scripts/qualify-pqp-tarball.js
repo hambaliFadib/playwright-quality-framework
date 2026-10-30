@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { createNpmCliInvocation } = require('./lib/npm-cli-invocation');
 const Reporter = require('../src/integration/pqp-reporter');
 
 function qualify(tarball) {
@@ -20,12 +21,13 @@ function qualify(tarball) {
   try {
     fs.writeFileSync(path.join(consumer, 'package.json'),
       JSON.stringify({ name: 'pqf-private-package-qualification', version: '0.0.0', private: true }));
-    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const child = spawnSync(npm,
-      ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund',
-        '--no-save', '--package-lock=false', tarball],
+    const invocation = createNpmCliInvocation([
+      'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund',
+      '--no-save', '--package-lock=false', tarball,
+    ]);
+    const child = spawnSync(invocation.command, invocation.args,
       { cwd: consumer, encoding: 'utf8', timeout: 60000, maxBuffer: 1024 * 1024,
-        env: { ...process.env, npm_config_offline: 'true' } });
+        env: { ...process.env, npm_config_offline: 'true' }, shell: false });
     assert.equal(child.error, undefined, 'PQP_QUALIFICATION_INSTALL_FAILED');
     assert.equal(child.status, 0, 'PQP_QUALIFICATION_INSTALL_FAILED');
 
@@ -71,6 +73,7 @@ if (require.main === module) {
     const allowed = new Set([
       'PQP_QUALIFICATION_TARBALL_REQUIRED',
       'PQP_QUALIFICATION_TARBALL_INVALID',
+      'NPM_CLI_PATH_UNAVAILABLE',
       'PQP_QUALIFICATION_INSTALL_FAILED',
       'PQP_QUALIFICATION_EMIT_REJECTED',
     ]);

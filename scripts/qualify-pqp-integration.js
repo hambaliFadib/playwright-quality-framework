@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { createNpmCliInvocation } = require('./lib/npm-cli-invocation');
 const Reporter = require('../src/integration/pqp-reporter');
 const { sanitizeRunEvidence } = require('../src/integration/sanitize-run-evidence');
 
@@ -22,12 +23,13 @@ function qualify(tarball) {
   try {
     fs.writeFileSync(path.join(consumer, 'package.json'),
       JSON.stringify({ name: 'pqf-pqp-integration-qualification', version: '0.0.0', private: true }));
-    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const install = spawnSync(npm,
-      ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund',
-        '--no-save', '--package-lock=false', tarball],
+    const invocation = createNpmCliInvocation([
+      'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund',
+      '--no-save', '--package-lock=false', tarball,
+    ]);
+    const install = spawnSync(invocation.command, invocation.args,
       { cwd: consumer, encoding: 'utf8', timeout: 60000, maxBuffer: 1024 * 1024,
-        env: { ...process.env, npm_config_offline: 'true' } });
+        env: { ...process.env, npm_config_offline: 'true' }, shell: false });
     assert.equal(install.error, undefined, 'PQP_QUALIFICATION_INSTALL_FAILED');
     assert.equal(install.status, 0, 'PQP_QUALIFICATION_INSTALL_FAILED');
 
@@ -86,6 +88,7 @@ if (require.main === module) {
     qualify(process.argv[2]);
   } catch (error) {
     const allowed = new Set(['PQP_QUALIFICATION_TARBALL_REQUIRED', 'PQP_QUALIFICATION_TARBALL_INVALID',
+      'NPM_CLI_PATH_UNAVAILABLE',
       'PQP_QUALIFICATION_INSTALL_FAILED', 'SANITIZER_REJECTED_VALID_RUN',
       'PQP_VALIDATOR_REJECTED_PQF_ENVELOPE', 'UNAPPROVED_FIELD_CROSSED_BOUNDARY',
       'PRODUCTION_REPORTER_EMIT_FAILED']);
