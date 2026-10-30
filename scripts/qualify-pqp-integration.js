@@ -74,7 +74,7 @@ function qualify(tarball) {
     const emittedEnvelope = JSON.parse(messages[0].slice('[pqf-evidence] '.length));
     assert.equal(validator.validateEnvelope(emittedEnvelope).ok, true);
 
-    process.stdout.write('PQP_PQF_CROSS_PACKAGE_QUALIFICATION_PASS\\n');
+    process.stdout.write('PQP_PQF_CROSS_PACKAGE_QUALIFICATION_PASS\n');
   } finally {
     fs.rmSync(consumer, { recursive: true, force: true });
   }
