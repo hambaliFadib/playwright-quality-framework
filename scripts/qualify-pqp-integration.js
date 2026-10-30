@@ -89,7 +89,7 @@ if (require.main === module) {
       'PQP_QUALIFICATION_INSTALL_FAILED', 'SANITIZER_REJECTED_VALID_RUN',
       'PQP_VALIDATOR_REJECTED_PQF_ENVELOPE', 'UNAPPROVED_FIELD_CROSSED_BOUNDARY',
       'PRODUCTION_REPORTER_EMIT_FAILED']);
-    process.stderr.write((allowed.has(error.message) ? error.message : 'PQP_QUALIFICATION_FAILED') + '\\n');
+    process.stderr.write((allowed.has(error.message) ? error.message : 'PQP_QUALIFICATION_FAILED') + '\n');
     process.exitCode = 2;
   }
 }
