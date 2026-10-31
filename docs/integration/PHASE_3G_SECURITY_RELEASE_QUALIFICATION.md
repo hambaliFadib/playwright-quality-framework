@@ -5,17 +5,16 @@ not remediate dependencies or authorize release.
 
 ## Current observed baseline
 
-- PQF `main`: `31e7e005333a8e0cc233ea0f2242f2969129b310` (Phase 3F merged and post-merge CI passed).
+- PQF `main` after dependency remediation: `98fca464b74ef245b78f5ec076a592ee498c7e36` (PR #6 merged; post-merge CI passed).
 - PQP private integration baseline: `bb7a25bb7299c4a5ff0e41e4dee58984aa914f92`.
-- Local PQF `npm ci` on 2026-10-30 reported **two high-severity
-  vulnerabilities**, without identifying package/advisory details.
+- The previous high-severity findings were `brace-expansion` (GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p) and `zod` (GHSA-mrhx-c7xc-m3w5). PR #6 remediated these to `brace-expansion@1.1.21` and `zod@4.6.7`; owner-side Windows audit and full framework validation passed.
 - GitHub repository inspection reported `main.protected=false` and **no
   repository rulesets**. Existing successful checks therefore do not enforce
   merge eligibility.
 
 ## Security audit gate
 
-A separate `Dependency audit (Node 22)` required-job candidate:
+A separate `Dependency audit (Node 22)` job intended to become a required status check:
 
 1. Uses immutable action commit SHAs and `persist-credentials: false`.
 2. Installs the committed lockfile with `npm ci --ignore-scripts`.
@@ -26,8 +25,7 @@ A separate `Dependency audit (Node 22)` required-job candidate:
 5. Keeps dependency details within the GitHub Actions log. Do not upload
    private PQP artifacts, tokens, or a report containing secrets.
 
-CI red from existing advisories is an **expected unresolved gate**, not an
-excuse to weaken or waive the audit.
+The updated PR branch includes the remediated lockfile from `main`. The audit job must pass on this exact PR head; any failure remains a blocking finding and must not be waived.
 
 ## Owner-side triage (Windows PowerShell)
 
