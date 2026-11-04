@@ -47,7 +47,7 @@ jobs:
             echo "::error::SAUCEDEMO_PASSWORD is required for AUT qualification."
             exit 1
           fi
-      - name: SauceDemo E2E qualification (3 sequential runs, 0 retries)
+      - name: SauceDemo regression qualification (3 scenarios x 3 repeats, 0 retries)
         env:
           BASE_URL: https://www.saucedemo.com/
           SAUCEDEMO_USERNAME: standard_user
