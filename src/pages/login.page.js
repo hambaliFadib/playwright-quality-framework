@@ -4,6 +4,7 @@ class LoginPage {
     this.username = page.locator('[data-test="username"]');
     this.password = page.locator('[data-test="password"]');
     this.loginButton = page.locator('[data-test="login-button"]');
+    this.errorMessage = page.locator('[data-test="error"]');
   }
 
   async open() { await this.page.goto('/'); }
