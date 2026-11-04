@@ -9,6 +9,7 @@
     "secret:check": "node scripts/secret-check.js",
     "record": "playwright codegen",
     "test:e2e": "node --env-file-if-exists=.env scripts/run-e2e.js",
+    "test:qualification": "node --env-file-if-exists=.env ./node_modules/@playwright/test/cli.js test tests/e2e/cart/add-to-cart.spec.js --project=chromium --repeat-each=3 --workers=1 --retries=0",
     "test:browser-smoke": "node ./node_modules/@playwright/test/cli.js test --config=playwright.smoke.config.js",
     "test:ui": "node --env-file-if-exists=.env ./node_modules/@playwright/test/cli.js test --ui",
     "test:headed": "node --env-file-if-exists=.env ./node_modules/@playwright/test/cli.js test --headed --workers=1",
