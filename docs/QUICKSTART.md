@@ -55,3 +55,9 @@ AI provider configuration lives in `.env.ai` (not `.env`). Normal deterministic 
 ```powershell
 npm run triage:selftest
 ```
+
+## CI verification boundary
+
+Run `npm run validate:framework` for checks that need no external application.
+Run `npm run validate` for the complete local workflow with `BASE_URL` and SauceDemo credentials configured in an ignored `.env`.
+The GitHub Actions workflow `SauceDemo AUT Qualification` is path-filtered and manually dispatchable; `Playwright Validation` always validates framework and Chromium browser readiness.
