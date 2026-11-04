@@ -65,7 +65,9 @@ Optional `.env` values are shown in `.env.example`. Do not commit `.env` or stor
 - `npm run report`
 - `npm run policy:selftest`
 - `npm run triage:selftest`
-- `npm run validate`
+- `npm run validate:framework` (no AUT or credentials)
+- `npm run validate` (full local framework + AUT validation; requires configured AUT)
+- `npm run test:qualification` (SauceDemo 3× qualification; requires configured AUT)
 
 ## Policy As Code
 
@@ -86,3 +88,12 @@ Static checks do not prove arbitrary semantic assertion equivalence, such as cha
 ## Production Backlog
 
 Consider Dependency-Cruiser, semantic diffing, richer evidence reports, worker account strategy, API cleanup helpers, sharding, and broader browser coverage only when project scale justifies them.
+
+## CI isolation (Phase 4C)
+
+- `Playwright Validation` runs framework lint, policy, secret, integration tests and independent Chromium browser smoke on every push/PR. The `validate` job name remains unchanged.
+- `SauceDemo AUT Qualification` runs three sequential Chromium E2E executions with zero retries for changes to E2E specs, Page Objects, fixtures, data, Playwright configuration, package files or its workflow; it also supports manual `workflow_dispatch`.
+- `SAUCEDEMO_PASSWORD` must exist as a repository Actions secret. Missing credentials produce a failing qualification, never a skipped PASS. `BASE_URL` and `SAUCEDEMO_USERNAME` are set by the qualification workflow.
+- `npm run validate` remains the full local command; `npm run validate:framework` is the credential-free framework subset. CI's `validate` job intentionally calls the framework subset.
+- When a change outside the path filters affects AUT behavior, trigger the qualification workflow manually. Because paths-filtered workflows can leave expected checks pending, do **not** mark the conditional qualification check as globally required for all pull requests. The always-on `validate` and `dependency-audit` jobs remain the stable branch-protection checks.
+

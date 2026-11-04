@@ -1,0 +1,63 @@
+name: SauceDemo AUT Qualification
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tests/e2e/**'
+      - 'src/pages/**'
+      - 'src/fixtures/**'
+      - 'src/data/**'
+      - 'playwright.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/aut-qualification.yml'
+  pull_request:
+    paths:
+      - 'tests/e2e/**'
+      - 'src/pages/**'
+      - 'src/fixtures/**'
+      - 'src/data/**'
+      - 'playwright.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/aut-qualification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  qualification:
+    name: SauceDemo qualification (3x)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Validate SauceDemo credentials are configured
+        env:
+          SAUCEDEMO_PASSWORD: ${{ secrets.SAUCEDEMO_PASSWORD }}
+        run: |
+          if [ -z "$SAUCEDEMO_PASSWORD" ]; then
+            echo "::error::SAUCEDEMO_PASSWORD is required for AUT qualification."
+            exit 1
+          fi
+      - name: SauceDemo E2E qualification (3 sequential runs, 0 retries)
+        env:
+          BASE_URL: https://www.saucedemo.com/
+          SAUCEDEMO_USERNAME: standard_user
+          SAUCEDEMO_PASSWORD: ${{ secrets.SAUCEDEMO_PASSWORD }}
+        run: npm run test:qualification
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: saucedemo-qualification-evidence
+          path: |
+            playwright-report/
+            test-results/
+            artifacts/playwright-results.json
