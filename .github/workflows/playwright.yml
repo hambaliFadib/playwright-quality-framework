@@ -24,6 +24,12 @@ jobs:
           SAUCEDEMO_USERNAME: standard_user
           SAUCEDEMO_PASSWORD: ${{ secrets.SAUCEDEMO_PASSWORD }}
         run: npm run validate
+      - name: SauceDemo qualification (3 clean sequential runs)
+        env:
+          BASE_URL: https://www.saucedemo.com/
+          SAUCEDEMO_USERNAME: standard_user
+          SAUCEDEMO_PASSWORD: ${{ secrets.SAUCEDEMO_PASSWORD }}
+        run: npm run test:qualification
       - name: Chromium browser smoke
         run: npm run test:browser-smoke
       - uses: actions/upload-artifact@v4
