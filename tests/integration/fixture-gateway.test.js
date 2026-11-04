@@ -10,11 +10,11 @@ test('fixture gateway imports without unresolved module dependencies', () => {
   assert.doesNotThrow(() => require(fixtureGatewayPath));
 });
 
-test('fixture gateway exports the Playwright test and expect APIs', () => {
-  const fixtureGateway = require(fixtureGatewayPath);
-
-  assert.equal(typeof fixtureGateway.test, 'function');
-  assert.equal(typeof fixtureGateway.expect, 'function');
-  assert.strictEqual(fixtureGateway.test, playwright.test);
-  assert.strictEqual(fixtureGateway.expect, playwright.expect);
+test('fixture gateway exports an extended Playwright test and the standard expect API', () => {
+  const gateway = require(fixtureGatewayPath);
+  assert.equal(typeof gateway.test, 'function');
+  assert.equal(typeof gateway.expect, 'function');
+  assert.equal(typeof gateway.test.extend, 'function');
+  assert.strictEqual(gateway.expect, playwright.expect);
+  assert.notStrictEqual(gateway.test, playwright.test);
 });

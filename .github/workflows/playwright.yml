@@ -18,7 +18,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run validate
+      - name: Validate framework and SauceDemo E2E
+        env:
+          BASE_URL: https://www.saucedemo.com/
+          SAUCEDEMO_USERNAME: standard_user
+          SAUCEDEMO_PASSWORD: ${{ secrets.SAUCEDEMO_PASSWORD }}
+        run: npm run validate
       - name: Chromium browser smoke
         run: npm run test:browser-smoke
       - uses: actions/upload-artifact@v4
