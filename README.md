@@ -92,7 +92,7 @@ Consider Dependency-Cruiser, semantic diffing, richer evidence reports, worker a
 ## CI isolation (Phase 4C)
 
 - `Playwright Validation` runs framework lint, policy, secret, integration tests and independent Chromium browser smoke on every push/PR. The `validate` job name remains unchanged.
-- `SauceDemo AUT Qualification` runs each SauceDemo E2E scenario three times sequentially with zero retries for changes to E2E specs, Page Objects, fixtures, data, Playwright configuration, package files or its workflow; it also supports manual `workflow_dispatch`.
+- `SauceDemo AUT Qualification` first runs each of the three E2E specs through separate Playwright CLI processes (one test per process, zero retries), then runs each scenario three times sequentially with zero retries for changes to E2E specs, Page Objects, fixtures, data, Playwright configuration, package files or its workflow; it also supports manual `workflow_dispatch`.
 - `SAUCEDEMO_PASSWORD` must exist as a repository Actions secret. Missing credentials produce a failing qualification, never a skipped PASS. `BASE_URL` and `SAUCEDEMO_USERNAME` are set by the qualification workflow.
 - `npm run validate` remains the full local command; `npm run validate:framework` is the credential-free framework subset. CI's `validate` job intentionally calls the framework subset.
 - When a change outside the path filters affects AUT behavior, trigger the qualification workflow manually. Because paths-filtered workflows can leave expected checks pending, do **not** mark the conditional qualification check as globally required for all pull requests. The always-on `validate` and `dependency-audit` jobs remain the stable branch-protection checks.

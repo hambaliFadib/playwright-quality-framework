@@ -47,6 +47,16 @@ jobs:
             echo "::error::SAUCEDEMO_PASSWORD is required for AUT qualification."
             exit 1
           fi
+      - name: Verify each E2E spec standalone (3 independent processes, 0 retries)
+        env:
+          BASE_URL: https://www.saucedemo.com/
+          SAUCEDEMO_USERNAME: standard_user
+          SAUCEDEMO_PASSWORD: ${{ secrets.SAUCEDEMO_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node ./node_modules/@playwright/test/cli.js test tests/e2e/auth/login.spec.js --project=chromium --workers=1 --retries=0
+          node ./node_modules/@playwright/test/cli.js test tests/e2e/cart/add-to-cart.spec.js --project=chromium --workers=1 --retries=0
+          node ./node_modules/@playwright/test/cli.js test tests/e2e/cart/remove-from-cart.spec.js --project=chromium --workers=1 --retries=0
       - name: SauceDemo regression qualification (3 scenarios x 3 repeats, 0 retries)
         env:
           BASE_URL: https://www.saucedemo.com/
