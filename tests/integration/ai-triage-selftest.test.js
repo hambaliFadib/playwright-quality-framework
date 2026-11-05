@@ -43,7 +43,7 @@ test('triage selftest never calls a configured AI provider', async () => {
       cwd: root,
       env: {
         ...process.env,
-        AI_API_KEY: 'synthetic-selftest-key',
+        AI_API_KEY: 'fixture',
         AI_BASE_URL: endpoint,
         AI_MODEL: 'synthetic-selftest-model',
       },
