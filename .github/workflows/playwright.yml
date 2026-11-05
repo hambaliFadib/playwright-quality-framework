@@ -45,5 +45,5 @@ jobs:
           cache: npm
       - name: Install locked dependency tree without lifecycle scripts
         run: npm --userconfig=/dev/null ci --ignore-scripts --no-audit --no-fund
-      - name: Fail on high-severity dependency advisories including devDependencies
-        run: npm --userconfig=/dev/null audit --audit-level=high --include=dev
+      - name: Fail on moderate-or-higher dependency advisories including devDependencies
+        run: npm --userconfig=/dev/null audit --audit-level=moderate --include=dev
