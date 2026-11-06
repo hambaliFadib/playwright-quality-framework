@@ -6,7 +6,7 @@ on:
       - maintenance/eslint-v10-migration
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   prepare-lockfile:
@@ -22,10 +22,15 @@ jobs:
           node -e "const [major, minor] = process.versions.node.split('.').map(Number); if (major !== 22 || minor < 13) { console.error('Node.js 22.13.0 or newer is required.'); process.exit(1); } console.log('Node.js', process.versions.node);"
       - name: Regenerate package lock using npm
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Upload generated lockfile for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: eslint-v10-package-lock
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 3
+      - name: Commit generated lockfile and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git rm .github/workflows/prepare-eslint-lock.yml
+          if git diff --cached --quiet; then
+            echo "No generated lockfile changes to commit."
+            exit 1
+          fi
+          git commit -m "chore(deps): regenerate lockfile for ESLint v10"
+          git push origin HEAD
