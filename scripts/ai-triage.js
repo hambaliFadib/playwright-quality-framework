@@ -60,8 +60,18 @@ function loadEvidence() {
 }
 
 async function main() {
+  const selftest = process.argv.includes('--selftest');
   const evidence = loadEvidence();
-  const triage = await triageFailure(evidence);
+
+  // The self-test must stay offline even when .env.ai or ambient AI_* variables are set.
+  const triage = selftest
+    ? await triageFailure(evidence, async () => { throw new Error('Simulated provider unavailable'); })
+    : await triageFailure(evidence);
+
+  if (selftest && (evidence.playwrightStatus !== 'failed' || triage.classification !== 'INCONCLUSIVE')) {
+    throw new Error('TRIAGE_SELFTEST_FAILED');
+  }
+
   console.log(JSON.stringify({ playwrightStatus: evidence.playwrightStatus, triage }, null, 2));
 }
 

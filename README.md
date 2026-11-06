@@ -97,3 +97,10 @@ Consider Dependency-Cruiser, semantic diffing, richer evidence reports, worker a
 - `npm run validate` remains the full local command; `npm run validate:framework` is the credential-free framework subset. CI's `validate` job intentionally calls the framework subset.
 - When a change outside the path filters affects AUT behavior, trigger the qualification workflow manually. Because paths-filtered workflows can leave expected checks pending, do **not** mark the conditional qualification check as globally required for all pull requests. The always-on `validate` and `dependency-audit` jobs remain the stable branch-protection checks.
 
+
+## Maintenance & governance
+
+- [Security reconciliation](docs/SECURITY_RECONCILIATION.md) records the advisory/lockfile distinction and the stronger moderate-severity CI gate.
+- [Solo-developer branch governance](docs/REPOSITORY_GOVERNANCE.md) defines required checks and manual ruleset verification. Documentation is not an active GitHub ruleset.
+- `npm run validate:framework` includes deterministic AI contract, policy-negative, and triage self-tests without an external AI provider.
+
