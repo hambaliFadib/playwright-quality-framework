@@ -110,6 +110,10 @@ async function start(harness, input = { target: SPEC.target }) {
   return harness.core.startRun(input);
 }
 
+async function flushAsyncLifecycle() {
+  await new Promise(resolve => setImmediate(resolve));
+}
+
 test('starts the fixed Node Playwright CLI asynchronously with shell disabled', async () => {
   const harness = createHarness();
   const response = await start(harness);
@@ -287,8 +291,7 @@ test('POSIX process-group absence is treated as already terminated', async () =>
   const response = await start(harness);
   assert.deepEqual(harness.core.cancelRun(response.runId), { ok: true });
   harness.children[0].emit('close', null, 'SIGTERM');
-  await Promise.resolve();
-  await Promise.resolve();
+  await flushAsyncLifecycle();
   assert.equal(harness.core.getRunStatus(response.runId).lifecycle, 'COMPLETED');
   assert.equal(harness.core.getRunStatus(response.runId).outcome, 'CANCELLED');
 });
@@ -306,8 +309,7 @@ test('Windows cancellation uses absolute taskkill.exe with process-tree flags', 
 
   harness.children[1].emit('close', 0, null);
   harness.children[0].emit('close', null, 'SIGKILL');
-  await Promise.resolve();
-  await Promise.resolve();
+  await flushAsyncLifecycle();
   assert.equal(harness.core.getRunStatus(response.runId).lifecycle, 'COMPLETED');
   assert.equal(harness.core.getRunStatus(response.runId).outcome, 'CANCELLED');
 });
@@ -318,8 +320,7 @@ test('Windows tree cleanup failure is reported as ERROR, not CANCELLED', async (
   harness.core.cancelRun(response.runId);
   harness.children[1].emit('close', 1, null);
   harness.children[0].emit('close', null, 'SIGKILL');
-  await Promise.resolve();
-  await Promise.resolve();
+  await flushAsyncLifecycle();
   const status = harness.core.getRunStatus(response.runId);
   assert.equal(status.lifecycle, 'COMPLETED');
   assert.equal(status.outcome, 'ERROR');
