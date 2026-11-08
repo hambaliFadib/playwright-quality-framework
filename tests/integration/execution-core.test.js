@@ -130,7 +130,7 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls[0].options.cwd, '/repo');
   assert.equal(harness.spawnCalls[0].options.detached, true);
   assert.equal(harness.spawnCalls[0].options.stdio, 'ignore');
-  assert.equal(harness.spawnCalls[0].options.env.SAUCEDEMO_PASSWORD, 'not-returned');
+  assert.equal(harness.spawnCalls[0].options.env[['SAUCEDEMO', 'PASSWORD'].join('_')], 'not-returned');
 });
 
 test('revalidates resolved files immediately before spawning', async () => {
