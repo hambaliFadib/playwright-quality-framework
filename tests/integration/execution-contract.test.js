@@ -36,7 +36,7 @@ test('target schemas reject traversal, absolute paths, and non-POSIX separators 
     '../secret.spec.js', 'spec:../secret.spec.js', 'spec:/etc/passwd.spec.js',
     'spec:C:/secret.spec.js', 'spec:auth\\\\login.spec.js', 'spec:auth//login.spec.js',
     'spec:auth/./login.spec.js', 'spec:auth/../login.spec.js', 'spec:auth/login.js',
-    'spec:auth/../../secret.test.js', 'spec:auth/\\u0000evil.spec.js',
+    ...[0x00, 0x1f, 0x7f].map(code => `spec:auth/${String.fromCharCode(code)}evil.spec.js`),
     'shell:node', null, 42,
   ];
   for (const target of invalidTargets) {
