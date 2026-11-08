@@ -10,7 +10,8 @@ const {
   validateTestTarget,
 } = require('./execution-contract');
 
-const TESTS_ROOT = path.resolve(__dirname, '../../tests/e2e');
+const REPOSITORY_ROOT = path.resolve(__dirname, '../..');
+const TESTS_ROOT = path.join(REPOSITORY_ROOT, 'tests', 'e2e');
 const SPEC_FILE_PATTERN = /(?:\.spec|\.test)\.js$/;
 
 class TestCatalogError extends Error {
@@ -87,20 +88,58 @@ async function walkDirectory(directoryPath, relativeDirectory, realRootPath, tes
   }
 }
 
-async function discoverTestsAtRoot(rootPath) {
-  if (typeof rootPath !== 'string' || !path.isAbsolute(rootPath)) {
+async function resolveRealCatalogueRoot(rootPath, trustedRootPath) {
+  if (
+    typeof rootPath !== 'string' ||
+    typeof trustedRootPath !== 'string' ||
+    !path.isAbsolute(rootPath) ||
+    !path.isAbsolute(trustedRootPath) ||
+    path.resolve(rootPath) !== rootPath ||
+    path.resolve(trustedRootPath) !== trustedRootPath ||
+    rootPath === trustedRootPath ||
+    !isPathWithin(trustedRootPath, rootPath)
+  ) {
     throw new TestCatalogError('CATALOG_INVALID');
   }
 
-  try {
-    const rootStat = await fs.lstat(rootPath);
-    if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+  const trustedRootStat = await fs.lstat(trustedRootPath);
+  if (trustedRootStat.isSymbolicLink() || !trustedRootStat.isDirectory()) {
+    throw new TestCatalogError('CATALOG_INVALID');
+  }
+
+  const realTrustedRootPath = await fs.realpath(trustedRootPath);
+  const relativeRootPath = path.relative(trustedRootPath, rootPath);
+  const pathSegments = relativeRootPath.split(path.sep);
+  let currentPath = trustedRootPath;
+  let realRootPath = realTrustedRootPath;
+
+  // Check every component below the trusted repository root. Checking only
+  // tests/e2e misses a symlink in its parent (for example, tests -> /external/tests).
+  for (const segment of pathSegments) {
+    if (!segment || segment === '.' || segment === '..') {
       throw new TestCatalogError('CATALOG_INVALID');
     }
 
-    const realRootPath = await fs.realpath(rootPath);
+    currentPath = path.join(currentPath, segment);
+    const currentStat = await fs.lstat(currentPath);
+    if (currentStat.isSymbolicLink() || !currentStat.isDirectory()) {
+      throw new TestCatalogError('CATALOG_INVALID');
+    }
+
+    realRootPath = await fs.realpath(currentPath);
+    if (!isPathWithin(realTrustedRootPath, realRootPath)) {
+      throw new TestCatalogError('CATALOG_INVALID');
+    }
+  }
+
+  return realRootPath;
+}
+
+async function discoverTestsAtRoot(rootPath, trustedRootPath) {
+  try {
+    const realRootPath = await resolveRealCatalogueRoot(rootPath, trustedRootPath);
     const tests = [];
-    await walkDirectory(rootPath, '', realRootPath, tests);
+    await walkDirectory(realRootPath, '', realRootPath, tests);
     tests.sort((left, right) => compareNames(left.relativePath, right.relativePath));
 
     const parsed = ListTestsResultSchema.safeParse({ tests });
@@ -117,13 +156,13 @@ async function discoverTestsAtRoot(rootPath) {
   }
 }
 
-async function resolveTestTargetAtRoot(target, rootPath) {
+async function resolveTestTargetAtRoot(target, rootPath, trustedRootPath) {
   const validatedTarget = validateTestTarget(target);
   if (!validatedTarget.ok) {
     throw new TestCatalogError('INVALID_TARGET');
   }
 
-  const catalog = await discoverTestsAtRoot(rootPath);
+  const catalog = await discoverTestsAtRoot(rootPath, trustedRootPath);
   let resolvedTests;
 
   if (validatedTarget.value === 'suite:all') {
@@ -152,11 +191,11 @@ async function listTests(input = {}) {
   if (!ListTestsInputSchema.safeParse(input).success) {
     throw new TestCatalogError('INVALID_INPUT');
   }
-  return discoverTestsAtRoot(TESTS_ROOT);
+  return discoverTestsAtRoot(TESTS_ROOT, REPOSITORY_ROOT);
 }
 
 async function resolveTestTarget(target) {
-  return resolveTestTargetAtRoot(target, TESTS_ROOT);
+  return resolveTestTargetAtRoot(target, TESTS_ROOT, REPOSITORY_ROOT);
 }
 
 module.exports = {

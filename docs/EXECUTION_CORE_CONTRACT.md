@@ -43,6 +43,6 @@ P2.1 defines schemas and validators only. Catalogue discovery, filesystem/symlin
 - IDs use `spec:<POSIX-relative-path>`; output ordering is deterministic.
 - `suite:all` resolves to every discovered spec, including an empty list when the catalogue is empty.
 - A well-formed ID absent from the current catalogue returns `TEST_NOT_FOUND`; malformed or unsafe IDs return `INVALID_TARGET`.
-- The catalogue fails closed on symlinks, invalid spec path segments, or a non-directory root. Filesystem availability failures return `CATALOG_UNAVAILABLE`.
+- The repository root is the trusted filesystem anchor. Before walking, every component from that anchor through `tests/e2e` is checked with `lstat` and must be a real directory; symlinks in `tests`, `e2e`, or nested entries are rejected. Invalid spec path segments and non-directory roots fail closed. Filesystem availability failures return `CATALOG_UNAVAILABLE`.
 - Discovery rechecks filesystem paths against the canonical catalogue root. Execution must still revalidate the selected file immediately before spawn to close time-of-check/time-of-use gaps.
 - Root-injection helpers are internal test seams; the public `listTests()` and `resolveTestTarget()` always use the fixed repository root.
