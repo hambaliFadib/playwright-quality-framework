@@ -33,6 +33,8 @@ const ERROR_CODES = Object.freeze([
   'EXECUTION_START_FAILED',
   'REPORT_INVALID',
   'CANCEL_NOT_ALLOWED',
+  'CATALOG_UNAVAILABLE',
+  'CATALOG_INVALID',
 ]);
 
 const LifecycleSchema = z.enum(['RUNNING', 'CANCELLING', 'COMPLETED']);
@@ -71,6 +73,14 @@ const TestDescriptorSchema = z.object({
 const ListTestsResultSchema = z.object({
   tests: z.array(TestDescriptorSchema).max(10_000),
 }).strict();
+
+const ResolvedTestTargetSchema = z.object({
+  target: TestTargetSchema,
+  tests: z.array(TestDescriptorSchema).max(10_000),
+}).strict().refine(value =>
+  value.target === 'suite:all' ||
+  (value.tests.length === 1 && value.tests[0].id === value.target),
+'Specific targets must resolve to exactly their matching test descriptor');
 
 const RunSummarySchema = z.object({
   total: z.number().int().min(0).max(MAX_SUMMARY_COUNT),
@@ -173,6 +183,7 @@ module.exports = {
   ListTestsInputSchema,
   TestDescriptorSchema,
   ListTestsResultSchema,
+  ResolvedTestTargetSchema,
   RunSummarySchema,
   RunResultSchema,
   RunStatusSchema,
