@@ -13,8 +13,11 @@ const SPEC_FILE_SUFFIX_PATTERN = /\.(?:spec|test)\.js$/;
 
 function isSafeSpecRelativePath(relativePath) {
   if (typeof relativePath !== 'string' || relativePath.length < 1 || relativePath.length > 512) return false;
-  if (relativePath.startsWith('/') || relativePath.includes('\\') || relativePath.includes(':') ||
-      /[\u0000-\u001F\u007F]/.test(relativePath)) return false;
+  if (relativePath.startsWith('/') || relativePath.includes('\\') || relativePath.includes(':')) return false;
+  for (let index = 0; index < relativePath.length; index += 1) {
+    const code = relativePath.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) return false;
+  }
   const segments = relativePath.split('/');
   return segments.every(segment => segment.length > 0 && segment !== '.' && segment !== '..') &&
     SPEC_FILE_SUFFIX_PATTERN.test(relativePath);
