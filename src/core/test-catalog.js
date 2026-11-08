@@ -187,6 +187,65 @@ async function resolveTestTargetAtRoot(target, rootPath, trustedRootPath) {
   return parsed.data;
 }
 
+async function revalidateResolvedTargetAtRoot(resolvedTarget, rootPath, trustedRootPath) {
+  const parsedTarget = ResolvedTestTargetSchema.safeParse(resolvedTarget);
+  if (!parsedTarget.success) {
+    throw new TestCatalogError('INVALID_TARGET');
+  }
+
+  try {
+    const realRootPath = await resolveRealCatalogueRoot(rootPath, trustedRootPath);
+    const absolutePaths = [];
+
+    for (const descriptor of parsedTarget.data.tests) {
+      if (!TestDescriptorSchema.safeParse(descriptor).success) {
+        throw new TestCatalogError('CATALOG_INVALID');
+      }
+
+      const segments = descriptor.relativePath.split('/');
+      let currentPath = realRootPath;
+
+      for (let index = 0; index < segments.length; index += 1) {
+        currentPath = path.join(currentPath, segments[index]);
+        const entryStat = await fs.lstat(currentPath);
+        const isFile = index === segments.length - 1;
+
+        if (
+          entryStat.isSymbolicLink() ||
+          (isFile ? !entryStat.isFile() : !entryStat.isDirectory())
+        ) {
+          throw new TestCatalogError('CATALOG_INVALID');
+        }
+
+        const realEntryPath = await fs.realpath(currentPath);
+        if (!isPathWithin(realRootPath, realEntryPath)) {
+          throw new TestCatalogError('CATALOG_INVALID');
+        }
+        currentPath = realEntryPath;
+      }
+
+      absolutePaths.push(currentPath);
+    }
+
+    return absolutePaths;
+  } catch (error) {
+    if (error instanceof TestCatalogError) throw error;
+    if (error && error.code === 'ENOENT') {
+      throw new TestCatalogError(
+        parsedTarget.data.target === 'suite:all' ? 'CATALOG_INVALID' : 'TEST_NOT_FOUND',
+      );
+    }
+    if (isMissingOrUnavailable(error)) {
+      throw new TestCatalogError('CATALOG_UNAVAILABLE');
+    }
+    throw new TestCatalogError('CATALOG_INVALID');
+  }
+}
+
+async function revalidateResolvedTestTargetForExecution(resolvedTarget) {
+  return revalidateResolvedTargetAtRoot(resolvedTarget, TESTS_ROOT, REPOSITORY_ROOT);
+}
+
 async function listTests(input = {}) {
   if (!ListTestsInputSchema.safeParse(input).success) {
     throw new TestCatalogError('INVALID_INPUT');
@@ -201,8 +260,10 @@ async function resolveTestTarget(target) {
 module.exports = {
   listTests,
   resolveTestTarget,
+  revalidateResolvedTestTargetForExecution,
   TestCatalogError,
   // Internal root-injection seams are exported only for deterministic filesystem tests.
   _discoverTestsAtRoot: discoverTestsAtRoot,
   _resolveTestTargetAtRoot: resolveTestTargetAtRoot,
+  _revalidateResolvedTargetAtRoot: revalidateResolvedTargetAtRoot,
 };

@@ -46,3 +46,18 @@ P2.1 defines schemas and validators only. Catalogue discovery, filesystem/symlin
 - The repository root is the trusted filesystem anchor. Before walking, every component from that anchor through `tests/e2e` is checked with `lstat` and must be a real directory; symlinks in `tests`, `e2e`, or nested entries are rejected. Invalid spec path segments and non-directory roots fail closed. Filesystem availability failures return `CATALOG_UNAVAILABLE`.
 - Discovery rechecks filesystem paths against the canonical catalogue root. Execution must still revalidate the selected file immediately before spawn to close time-of-check/time-of-use gaps.
 - Root-injection helpers are internal test seams; the public `listTests()` and `resolveTestTarget()` always use the fixed repository root.
+
+
+## P2.3 — Asynchronous execution and lifecycle
+
+- startRun({ target, timeoutMs? }) resolves the target against the fixed catalogue, revalidates every selected file immediately before process creation, then starts the fixed local Playwright CLI through the current Node executable.
+- The process uses shell: false, a fixed repository working directory, Chromium, one worker, and zero retries. Caller-supplied commands, arguments, paths, and environment overrides are not accepted.
+- Only one execution may be active or being prepared. Concurrent starts return EXECUTION_BUSY; there is no queue.
+- Default timeout is 120 seconds; accepted bounds remain 1–300 seconds.
+- POSIX execution starts in a detached process group. Cancellation and timeout send SIGTERM, wait the bounded grace period, then send SIGKILL to the process group.
+- Windows cancellation and timeout use the absolute System32 taskkill.exe path with /T /F. A failed tree cleanup falls back to killing the direct child but is reported as PROCESS_CLEANUP_FAILED, never as successful cancellation.
+- A timeout/cancellation remains CANCELLING until both the child close event and process-tree cleanup have completed. The active slot is not released earlier.
+- Completed run history is in memory and retains the latest 20 completed records. There is no persistent queue or database.
+- An empty suite:all completes immediately with NO_TESTS.
+- A natural process exit records COMPLETED lifecycle but leaves the outcome unavailable. P2.4 must classify it from a valid per-run Playwright JSON report; exit code 0 is never treated as PASSED.
+- Process IDs, exit details, absolute spec paths, stdout/stderr, and environment values remain internal and are not returned by the public API.
