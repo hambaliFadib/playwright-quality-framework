@@ -1,0 +1,46 @@
+name: Regenerate minimatch override lockfile (temporary)
+
+on:
+  push:
+    branches:
+      - maintenance/eslint-v10-migration
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Regenerate lockfile using npm
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify minimatch resolution and override scope
+        run: |
+          node - <<'NODE'
+          const pkg = require('./package.json');
+          const lock = require('./package-lock.json');
+          const mm = Object.entries(lock.packages)
+            .filter(([key]) => key.endsWith('/minimatch'))
+            .map(([key, value]) => ({ path: key, version: value.version }));
+          const expected = ['eslint', '@eslint/config-array'];
+          for (const parent of expected) {
+            if (pkg.overrides?.[parent]?.minimatch !== '11.0.4') throw new Error('Missing scoped override: ' + parent);
+          }
+          if (!mm.length || mm.some(v => v.version !== '11.0.4')) throw new Error('Unexpected minimatch resolution: ' + JSON.stringify(mm));
+          console.log(JSON.stringify({ minimatch: mm, overrides: pkg.overrides }, null, 2));
+          NODE
+      - name: Commit generated lockfile and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git rm .github/workflows/prepare-minimatch-lock.yml
+          git diff --cached --quiet && { echo "::error::No lockfile/workflow changes staged"; exit 1; }
+          git commit -m "chore(deps): regenerate minimatch v11 scoped override lockfile"
+          git push origin HEAD
