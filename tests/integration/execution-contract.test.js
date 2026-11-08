@@ -28,15 +28,35 @@ test('start input enforces bounded integer timeout', () => {
   assert.equal(contract.validateStartRunInput({ target: 'suite:all', timeoutMs: 300000 }).ok, true);
 });
 
-test('target contract permits suite and constrained spec identifiers only', () => {
+test('target schemas reject traversal, absolute paths, and non-POSIX separators at every entry point', () => {
   assert.equal(contract.validateTestTarget('suite:all').ok, true);
   assert.equal(contract.validateTestTarget('spec:auth/login.spec.js').ok, true);
-  for (const target of [
+  assert.equal(contract.StartRunInputSchema.safeParse({ target: 'spec:.hidden/login.spec.js' }).success, true);
+  const invalidTargets = [
     '../secret.spec.js', 'spec:../secret.spec.js', 'spec:/etc/passwd.spec.js',
-    'spec:C:/secret.spec.js', 'spec:auth\\login.spec.js', 'spec:auth//login.spec.js',
+    'spec:C:/secret.spec.js', 'spec:auth\\\\login.spec.js', 'spec:auth//login.spec.js',
     'spec:auth/./login.spec.js', 'spec:auth/../login.spec.js', 'spec:auth/login.js',
+    'spec:auth/../../secret.test.js', 'spec:auth/\\u0000evil.spec.js',
     'shell:node', null, 42,
-  ]) assert.equal(contract.validateTestTarget(target).ok, false, String(target));
+  ];
+  for (const target of invalidTargets) {
+    assert.equal(contract.validateTestTarget(target).ok, false, String(target));
+    assert.equal(contract.TestTargetSchema.safeParse(target).success, false, String(target));
+    assert.equal(contract.StartRunInputSchema.safeParse({ target }).success, false, String(target));
+  }
+});
+
+test('test descriptors require a safe relative path matching the stable spec ID', () => {
+  assert.equal(contract.TestDescriptorSchema.safeParse({
+    id: 'spec:auth/login.spec.js',
+    relativePath: 'auth/login.spec.js',
+  }).success, true);
+  for (const descriptor of [
+    { id: 'spec:auth/login.spec.js', relativePath: '../auth/login.spec.js' },
+    { id: 'spec:auth/login.spec.js', relativePath: 'auth\\\\login.spec.js' },
+    { id: 'spec:auth/other.spec.js', relativePath: 'auth/login.spec.js' },
+    { id: 'suite:all', relativePath: 'auth/login.spec.js' },
+  ]) assert.equal(contract.TestDescriptorSchema.safeParse(descriptor).success, false);
 });
 
 test('lifecycle is separate from outcome', () => {

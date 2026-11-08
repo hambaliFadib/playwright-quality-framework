@@ -9,7 +9,16 @@ const MAX_COMPLETED_RUNS = 20;
 const MAX_SUMMARY_COUNT = 1_000_000;
 const ISO_MILLIS_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const RUN_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const SPEC_ID_PATTERN = /^spec:(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+(?:\.spec|\.test)\.js$/;
+const SPEC_FILE_SUFFIX_PATTERN = /\.(?:spec|test)\.js$/;
+
+function isSafeSpecRelativePath(relativePath) {
+  if (typeof relativePath !== 'string' || relativePath.length < 1 || relativePath.length > 512) return false;
+  if (relativePath.startsWith('/') || relativePath.includes('\\') || relativePath.includes(':') ||
+      /[\u0000-\u001F\u007F]/.test(relativePath)) return false;
+  const segments = relativePath.split('/');
+  return segments.every(segment => segment.length > 0 && segment !== '.' && segment !== '..') &&
+    SPEC_FILE_SUFFIX_PATTERN.test(relativePath);
+}
 const ERROR_CODES = Object.freeze([
   'INVALID_INPUT',
   'INVALID_TARGET',
@@ -31,9 +40,13 @@ const UtcTimestampSchema = z.string().regex(ISO_MILLIS_UTC).refine(value => {
   return Number.isFinite(parsed) && new Date(parsed).toISOString() === value;
 }, 'Expected a valid UTC timestamp with millisecond precision');
 const RunIdSchema = z.string().regex(RUN_ID_PATTERN);
+const SpecTargetSchema = z.string().min(6).max(517).refine(value =>
+  value.startsWith('spec:') && isSafeSpecRelativePath(value.slice('spec:'.length)),
+'Expected spec:<safe POSIX-relative .spec.js or .test.js path>');
+
 const TestTargetSchema = z.union([
   z.literal('suite:all'),
-  z.string().regex(SPEC_ID_PATTERN),
+  SpecTargetSchema,
 ]);
 
 const StartRunInputSchema = z.object({
@@ -43,10 +56,14 @@ const StartRunInputSchema = z.object({
 
 const ListTestsInputSchema = z.object({}).strict();
 
+const SpecRelativePathSchema = z.string().min(1).max(512).refine(isSafeSpecRelativePath,
+'Expected a safe POSIX-relative spec path');
+
 const TestDescriptorSchema = z.object({
-  id: TestTargetSchema,
-  relativePath: z.string().min(1).max(512).regex(/^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/),
-}).strict();
+  id: SpecTargetSchema,
+  relativePath: SpecRelativePathSchema,
+}).strict().refine(value => value.id === `spec:${value.relativePath}`,
+'Spec ID must match its relative path');
 
 const ListTestsResultSchema = z.object({
   tests: z.array(TestDescriptorSchema).max(10_000),
@@ -132,13 +149,6 @@ function validateStartRunInput(input) {
 function validateTestTarget(target) {
   const parsed = TestTargetSchema.safeParse(target);
   if (!parsed.success) return { ok: false, code: 'INVALID_TARGET' };
-  if (parsed.data.startsWith('spec:')) {
-    const relativePath = parsed.data.slice('spec:'.length);
-    if (relativePath.includes('\\') || relativePath.includes(':') || relativePath.startsWith('.') ||
-        relativePath.split('/').some(part => !part || part === '.' || part === '..')) {
-      return { ok: false, code: 'INVALID_TARGET' };
-    }
-  }
   return { ok: true, value: parsed.data };
 }
 
@@ -154,6 +164,8 @@ module.exports = {
   UtcTimestampSchema,
   RunIdSchema,
   TestTargetSchema,
+  SpecTargetSchema,
+  SpecRelativePathSchema,
   StartRunInputSchema,
   ListTestsInputSchema,
   TestDescriptorSchema,
