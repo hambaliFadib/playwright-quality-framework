@@ -13,6 +13,7 @@ const {
   _discoverTestsAtRoot,
   _resolveTestTargetAtRoot,
 } = require('../../src/core/test-catalog');
+const { TestDescriptorSchema } = require('../../src/core/execution-contract');
 
 async function createTempRoot(t) {
   const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'pqf-test-catalog-'));
@@ -148,10 +149,21 @@ test('catalogue fails closed when the tests/e2e root itself is a symlink', async
   await expectCatalogError(discoverAtRoot(root), 'CATALOG_INVALID');
 });
 
-test('catalogue fails closed for invalid spec path segments', async t => {
+test('catalogue fails closed for invalid spec path segments', { skip: process.platform === 'win32' }, async t => {
   const { root } = await createTempRoot(t);
   await writeFileAt(root, 'invalid:name.spec.js');
   await expectCatalogError(discoverAtRoot(root), 'CATALOG_INVALID');
+});
+
+test('test descriptor schema rejects invalid POSIX path segments on every platform', () => {
+  assert.equal(TestDescriptorSchema.safeParse({
+    id: 'spec:invalid:name.spec.js',
+    relativePath: 'invalid:name.spec.js',
+  }).success, false);
+  assert.equal(TestDescriptorSchema.safeParse({
+    id: 'spec:auth/login.spec.js',
+    relativePath: 'auth/login.spec.js',
+  }).success, true);
 });
 
 test('resolveTestTarget returns only a catalogue member for a specific ID', async t => {
