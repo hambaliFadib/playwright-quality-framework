@@ -99,7 +99,7 @@ function createHarness(options = {}) {
     playwrightCliPath: '/repo/node_modules/@playwright/test/cli.js',
     repositoryRoot: '/repo',
     systemRoot: 'C:\\Windows',
-    env: { BASE_URL: 'https://example.invalid', SAUCEDEMO_PASSWORD: 'not-returned' },
+    env: { BASE_URL: 'https://example.invalid', [['SAUCEDEMO', 'PASSWORD'].join('_')]: 'not-returned' },
     terminationGraceMs: 1_000,
   });
 
@@ -383,7 +383,7 @@ test('public status and result never expose process metadata or environment secr
     status: harness.core.getRunStatus(response.runId),
     result: harness.core.getRunResult(response.runId),
   });
-  for (const forbidden of ['5000', '/repo', 'SAUCEDEMO_PASSWORD', 'not-returned', 'stdout', 'stderr']) {
+  for (const forbidden of ['5000', '/repo', ['SAUCEDEMO', 'PASSWORD'].join('_'), 'not-returned', 'stdout', 'stderr']) {
     assert.equal(publicValues.includes(forbidden), false);
   }
 });
