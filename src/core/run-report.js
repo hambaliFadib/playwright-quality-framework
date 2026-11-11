@@ -54,8 +54,11 @@ function collectStatuses(suites) {
   while (stack.length > 0) {
     const suite = stack.pop();
     if (!suite || typeof suite !== 'object' || Array.isArray(suite)) throw new Error('REPORT_INVALID');
-    if (!Array.isArray(suite.suites) || !Array.isArray(suite.specs)) throw new Error('REPORT_INVALID');
-    for (const nested of suite.suites) stack.push(nested);
+    if (!Array.isArray(suite.specs) ||
+        (suite.suites !== undefined && !Array.isArray(suite.suites))) {
+      throw new Error('REPORT_INVALID');
+    }
+    for (const nested of suite.suites || []) stack.push(nested);
     for (const spec of suite.specs) {
       if (!spec || !Array.isArray(spec.tests)) throw new Error('REPORT_INVALID');
       for (const entry of spec.tests) {

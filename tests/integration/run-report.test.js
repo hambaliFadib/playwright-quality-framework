@@ -77,6 +77,12 @@ test('failed skipped unexpected or flaky tests cannot be PASS even with exit cod
   assert.equal(classifyReport(report(['unexpected']), 1).outcome, 'FAILED');
 });
 
+test('leaf suites may omit the optional nested suite field', () => {
+  const doc = report(['expected']);
+  delete doc.suites[0].suites;
+  assert.equal(classifyReport(doc, 0).outcome, 'PASSED');
+});
+
 test('suite hierarchy is recursively counted without losing nested specs', () => {
   const doc = report([]);
   doc.suites[0].suites.push({
@@ -134,7 +140,7 @@ test('report parsing rejects malformed JSON, symlinked files, and oversized file
 });
 
 test('symlinked report directory is not accepted for reading', async t => {
-  const { folder, reporter } = await fixture(t);
+  const { reporter } = await fixture(t);
   const file = await reporter.prepareRun(IDS[0]);
   await fs.writeFile(file, JSON.stringify(report(['expected'])));
   const directory = path.dirname(file);

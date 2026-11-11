@@ -439,6 +439,8 @@ test('natural close clears the timeout timer', async () => {
   const timeout = harness.scheduler.pending(120_000);
   harness.children[0].emit('close', 1, null);
   assert.equal(timeout.cleared, true);
+  assert.equal(harness.core.getRunStatus(response.runId).lifecycle, 'RUNNING');
+  await flushAsyncLifecycle();
   assert.equal(harness.core.getRunStatus(response.runId).lifecycle, 'COMPLETED');
 });
 
