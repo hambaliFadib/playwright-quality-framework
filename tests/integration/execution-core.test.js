@@ -73,6 +73,17 @@ function createHarness(options = {}) {
     return child;
   });
 
+  const reporter = options.reporter || {
+    async prepareRun() {},
+    async readRun() {
+      return {
+        outcome: 'PASSED',
+        summary: { total: 1, passed: 1, failed: 0, skipped: 0, flaky: 0 },
+        errorCode: null,
+      };
+    },
+  };
+
   const catalog = {
     listTests: async () => ({ tests: [SPEC.tests[0]] }),
     resolveTestTarget: options.resolveTestTarget || (async () =>
@@ -95,6 +106,7 @@ function createHarness(options = {}) {
     })(),
     randomUUID: () => RUN_IDS[uuidIndex++],
     catalog,
+    reporter,
     platform: options.platform || 'linux',
     execPath: '/usr/bin/node',
     playwrightCliPath: '/repo/node_modules/@playwright/test/cli.js',
@@ -137,6 +149,7 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls[0].options.detached, true);
   assert.equal(harness.spawnCalls[0].options.stdio, 'ignore');
   assert.equal(harness.spawnCalls[0].options.env[['SAUCEDEMO', 'PASSWORD'].join('_')], 'not-returned');
+  assert.equal(harness.spawnCalls[0].options.env.PQF_EXECUTION_RUN_ID, RUN_IDS[0]);
 });
 
 test('loads only the fixed repository .env file while preserving inherited environment', async () => {
@@ -218,17 +231,20 @@ test('reserves the execution slot while asynchronous target resolution is pendin
   assert.equal(harness.spawnCalls.length, 1);
 });
 
-test('natural process close completes lifecycle but never infers PASSED from exit code zero', async () => {
+test('natural process close waits for the validated reporter before publishing PASSED', async () => {
   const harness = createHarness();
   const response = await start(harness);
   harness.children[0].emit('close', 0, null);
-  const status = harness.core.getRunStatus(response.runId);
-  assert.equal(status.lifecycle, 'COMPLETED');
-  assert.equal(Object.hasOwn(status, 'outcome'), false);
+  assert.equal(harness.core.getRunStatus(response.runId).lifecycle, 'RUNNING');
   assert.deepEqual(harness.core.getRunResult(response.runId), {
     available: false,
     runId: response.runId,
   });
+  await flushAsyncLifecycle();
+  const status = harness.core.getRunStatus(response.runId);
+  assert.equal(status.lifecycle, 'COMPLETED');
+  assert.equal(status.outcome, 'PASSED');
+  assert.equal(harness.core.getRunResult(response.runId).result.summary.passed, 1);
 });
 
 test('spawn error becomes a stable ERROR result after child close', async () => {
@@ -357,6 +373,7 @@ test('completed history retains only the latest twenty records', async () => {
     const response = await start(harness);
     ids.push(response.runId);
     harness.children[index].emit('close', 0, null);
+    await flushAsyncLifecycle();
   }
   assert.deepEqual(harness.core.getRunStatus(ids[0]), { ok: false, code: 'RUN_NOT_FOUND' });
   assert.equal(harness.core.getRunStatus(ids[1]).lifecycle, 'COMPLETED');
@@ -370,6 +387,7 @@ test('active execution is never evicted while completed history is trimmed', asy
     const response = await start(harness);
     ids.push(response.runId);
     harness.children[index].emit('close', 0, null);
+    await flushAsyncLifecycle();
   }
   const active = await start(harness);
   assert.equal(harness.core.getRunStatus(active.runId).lifecycle, 'RUNNING');
@@ -388,6 +406,8 @@ test('completed runs cannot be cancelled again', async () => {
   const response = await start(harness);
   harness.children[0].emit('close', 0, null);
   assert.deepEqual(harness.core.cancelRun(response.runId), { ok: false, code: 'CANCEL_NOT_ALLOWED' });
+  await flushAsyncLifecycle();
+  assert.equal(harness.core.getRunStatus(response.runId).outcome, 'PASSED');
 });
 
 test('public status and result never expose process metadata or environment secrets', async () => {
