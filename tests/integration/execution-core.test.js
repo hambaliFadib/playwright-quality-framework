@@ -247,6 +247,82 @@ test('natural process close waits for the validated reporter before publishing P
   assert.equal(harness.core.getRunResult(response.runId).result.summary.passed, 1);
 });
 
+test('a missing reporter creates terminal ERROR instead of a false PASS', async () => {
+  const harness = createHarness({
+    reporter: {
+      async prepareRun() {},
+      async readRun() { throw new Error('private report path'); },
+    },
+  });
+  const response = await start(harness);
+  harness.children[0].emit('close', 0, null);
+  await flushAsyncLifecycle();
+  const status = harness.core.getRunStatus(response.runId);
+  assert.equal(status.lifecycle, 'COMPLETED');
+  assert.equal(status.outcome, 'ERROR');
+  assert.equal(status.errorCode, 'REPORT_INVALID');
+  assert.equal(harness.core.getRunResult(response.runId).result.outcome, 'ERROR');
+  assert.equal(JSON.stringify(harness.core.getRunResult(response.runId)).includes('private report path'), false);
+});
+
+test('result parsing keeps the execution slot locked until evidence is checked', async () => {
+  let releaseRead;
+  const pendingRead = new Promise(resolve => { releaseRead = resolve; });
+  const harness = createHarness({
+    reporter: {
+      async prepareRun() {},
+      readRun: () => pendingRead,
+    },
+  });
+  const response = await start(harness);
+  harness.children[0].emit('close', 0, null);
+  assert.deepEqual(await start(harness), { ok: false, code: 'EXECUTION_BUSY' });
+  assert.deepEqual(harness.core.cancelRun(response.runId), { ok: false, code: 'CANCEL_NOT_ALLOWED' });
+  releaseRead({
+    outcome: 'PASSED',
+    summary: { total: 1, passed: 1, failed: 0, skipped: 0, flaky: 0 },
+    errorCode: null,
+  });
+  await flushAsyncLifecycle();
+  assert.equal(harness.core.getRunStatus(response.runId).outcome, 'PASSED');
+  assert.equal((await start(harness)).lifecycle, 'RUNNING');
+});
+
+test('failed per-run directory preparation does not spawn or retain a busy slot', async () => {
+  let deny = true;
+  const harness = createHarness({
+    reporter: {
+      async prepareRun() {
+        if (deny) {
+          deny = false;
+          throw new Error('private file name');
+        }
+      },
+      async readRun() { throw new Error('REPORT_INVALID'); },
+    },
+  });
+  assert.deepEqual(await start(harness), { ok: false, code: 'REPORT_INVALID' });
+  assert.equal(harness.spawnCalls.length, 0);
+  assert.equal((await start(harness)).lifecycle, 'RUNNING');
+});
+
+test('reporter FAILED and NO_TESTS classifications are reflected in public results', async () => {
+  for (const classification of [
+    { outcome: 'FAILED', summary: { total: 2, passed: 1, failed: 1, skipped: 0, flaky: 0 }, errorCode: null },
+    { outcome: 'NO_TESTS', summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0 }, errorCode: null },
+  ]) {
+    const harness = createHarness({
+      reporter: { async prepareRun() {}, async readRun() { return classification; } },
+    });
+    const response = await start(harness);
+    harness.children[0].emit('close', classification.outcome === 'FAILED' ? 1 : 0, null);
+    await flushAsyncLifecycle();
+    const status = harness.core.getRunStatus(response.runId);
+    assert.equal(status.outcome, classification.outcome);
+    assert.deepEqual(harness.core.getRunResult(response.runId).result.summary, classification.summary);
+  }
+});
+
 test('spawn error becomes a stable ERROR result after child close', async () => {
   const harness = createHarness();
   const response = await start(harness);
