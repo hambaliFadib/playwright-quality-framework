@@ -51,7 +51,8 @@ P2.1 defines schemas and validators only. Catalogue discovery, filesystem/symlin
 ## P2.3 — Asynchronous execution and lifecycle
 
 - startRun({ target, timeoutMs? }) resolves the target against the fixed catalogue, revalidates every selected file immediately before process creation, then starts the fixed local Playwright CLI through the current Node executable.
-- The process uses shell: false, a fixed repository working directory, Chromium, one worker, and zero retries. Caller-supplied commands, arguments, paths, and environment overrides are not accepted.
+- The process uses shell: false, a fixed repository working directory, Chromium, one worker, and zero retries.
+- Node loads only the fixed repository `.env` using `--env-file-if-exists=<repository>/.env`. Inherited environment variables keep precedence; the caller cannot select an environment file or override environment variables through the run API. `.env.ai` is not loaded. Caller-supplied commands, arguments, paths, and environment overrides are not accepted.
 - Only one execution may be active or being prepared. Concurrent starts return EXECUTION_BUSY; there is no queue.
 - Default timeout is 120 seconds; accepted bounds remain 1–300 seconds.
 - POSIX execution starts in a detached process group. Cancellation and timeout send SIGTERM, wait the bounded grace period, then send SIGKILL to the process group.

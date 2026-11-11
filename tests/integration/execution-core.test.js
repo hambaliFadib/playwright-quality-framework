@@ -124,6 +124,7 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls.length, 1);
   assert.equal(harness.spawnCalls[0].command, '/usr/bin/node');
   assert.deepEqual(harness.spawnCalls[0].args, [
+    '--env-file-if-exists=/repo/.env',
     '/repo/node_modules/@playwright/test/cli.js',
     'test',
     ABSOLUTE_SPEC,
@@ -136,6 +137,17 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls[0].options.detached, true);
   assert.equal(harness.spawnCalls[0].options.stdio, 'ignore');
   assert.equal(harness.spawnCalls[0].options.env[['SAUCEDEMO', 'PASSWORD'].join('_')], 'not-returned');
+});
+
+test('loads only the fixed repository .env file while preserving inherited environment', async () => {
+  const harness = createHarness();
+  await start(harness);
+  const invocation = harness.spawnCalls[0];
+  assert.equal(invocation.command, '/usr/bin/node');
+  assert.equal(invocation.args[0], '--env-file-if-exists=/repo/.env');
+  assert.equal(invocation.options.env.BASE_URL, 'https://example.invalid');
+  assert.equal(invocation.args.some(arg => arg.includes('.env.ai')), false);
+  assert.equal(invocation.options.shell, false);
 });
 
 test('revalidates resolved files immediately before spawning', async () => {

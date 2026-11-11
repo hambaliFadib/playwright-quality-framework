@@ -300,6 +300,7 @@ function createExecutionCore(overrides = {}) {
     if (startReservation !== reservation) return publicError('EXECUTION_BUSY');
 
     const args = [
+      '--env-file-if-exists=' + path.join(dependencies.repositoryRoot, '.env'),
       dependencies.playwrightCliPath,
       'test',
       ...absoluteSpecPaths,
