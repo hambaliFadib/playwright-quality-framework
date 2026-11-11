@@ -12,6 +12,7 @@ const {
   TestCatalogError,
   _discoverTestsAtRoot,
   _resolveTestTargetAtRoot,
+  _revalidateResolvedTargetAtRoot,
 } = require('../../src/core/test-catalog');
 const { TestDescriptorSchema } = require('../../src/core/execution-contract');
 
@@ -215,4 +216,51 @@ test('public resolveTestTarget uses the fixed repository catalogue', async () =>
 test('listTests rejects caller-supplied root or unexpected options', async () => {
   await assert.rejects(listTests({ rootPath: os.tmpdir() }), error =>
     error instanceof TestCatalogError && error.code === 'INVALID_INPUT');
+});
+
+
+test('execution-time revalidation returns absolute paths only for current regular files', async t => {
+  const { root } = await createTempRoot(t);
+  await writeFileAt(root, 'auth/login.spec.js');
+  const resolved = {
+    target: 'spec:auth/login.spec.js',
+    tests: [{ id: 'spec:auth/login.spec.js', relativePath: 'auth/login.spec.js' }],
+  };
+  const paths = await _revalidateResolvedTargetAtRoot(
+    resolved,
+    root,
+    trustedRootFor(root),
+  );
+  assert.equal(paths.length, 1);
+  assert.equal(paths[0], path.join(root, 'auth', 'login.spec.js'));
+});
+
+test('execution-time revalidation rejects a spec replaced by a symlink', async t => {
+  const { tempDirectory, root } = await createTempRoot(t);
+  const outside = path.join(tempDirectory, 'outside.spec.js');
+  await fs.writeFile(outside, '// outside\n');
+  await writeFileAt(root, 'auth/login.spec.js');
+  const target = path.join(root, 'auth', 'login.spec.js');
+  await fs.rm(target);
+  await fs.symlink(outside, target, process.platform === 'win32' ? 'file' : undefined);
+  await assert.rejects(
+    _revalidateResolvedTargetAtRoot({
+      target: 'spec:auth/login.spec.js',
+      tests: [{ id: 'spec:auth/login.spec.js', relativePath: 'auth/login.spec.js' }],
+    }, root, trustedRootFor(root)),
+    error => error.code === 'CATALOG_INVALID',
+  );
+});
+
+test('execution-time revalidation rejects a selected file removed after discovery', async t => {
+  const { root } = await createTempRoot(t);
+  const target = await writeFileAt(root, 'auth/login.spec.js');
+  await fs.rm(target);
+  await assert.rejects(
+    _revalidateResolvedTargetAtRoot({
+      target: 'spec:auth/login.spec.js',
+      tests: [{ id: 'spec:auth/login.spec.js', relativePath: 'auth/login.spec.js' }],
+    }, root, trustedRootFor(root)),
+    error => error.code === 'TEST_NOT_FOUND',
+  );
 });

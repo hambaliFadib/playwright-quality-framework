@@ -35,6 +35,7 @@ const ERROR_CODES = Object.freeze([
   'CANCEL_NOT_ALLOWED',
   'CATALOG_UNAVAILABLE',
   'CATALOG_INVALID',
+  'PROCESS_CLEANUP_FAILED',
 ]);
 
 const LifecycleSchema = z.enum(['RUNNING', 'CANCELLING', 'COMPLETED']);
@@ -130,15 +131,25 @@ const RunStatusSchema = z.discriminatedUnion('lifecycle', [
     lifecycle: z.literal('COMPLETED'),
     startedAt: UtcTimestampSchema,
     finishedAt: UtcTimestampSchema,
-    outcome: OutcomeSchema,
+    outcome: OutcomeSchema.optional(),
+    errorCode: ErrorCodeSchema.optional(),
   }).strict().refine(value => Date.parse(value.finishedAt) >= Date.parse(value.startedAt)),
 ]);
 
-const StartRunResponseSchema = z.object({
-  runId: RunIdSchema,
-  lifecycle: z.literal('RUNNING'),
-  startedAt: UtcTimestampSchema,
-}).strict();
+const StartRunResponseSchema = z.discriminatedUnion('lifecycle', [
+  z.object({
+    runId: RunIdSchema,
+    lifecycle: z.literal('RUNNING'),
+    startedAt: UtcTimestampSchema,
+  }).strict(),
+  z.object({
+    runId: RunIdSchema,
+    lifecycle: z.literal('COMPLETED'),
+    startedAt: UtcTimestampSchema,
+    finishedAt: UtcTimestampSchema,
+    outcome: z.literal('NO_TESTS'),
+  }).strict().refine(value => Date.parse(value.finishedAt) >= Date.parse(value.startedAt)),
+]);
 
 const GetRunResultResponseSchema = z.discriminatedUnion('available', [
   z.object({ available: z.literal(false), runId: RunIdSchema }).strict(),

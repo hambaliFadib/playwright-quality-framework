@@ -47,3 +47,18 @@ jobs:
         run: npm --userconfig=/dev/null ci --ignore-scripts --no-audit --no-fund
       - name: Fail on moderate-or-higher dependency advisories including devDependencies
         run: npm --userconfig=/dev/null audit --audit-level=moderate --include=dev
+
+
+  windows-lifecycle:
+    name: Windows real process-tree lifecycle
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify cancellation and timeout terminate parent and grandchild
+        run: node --test tests/integration/execution-process-tree.test.js
