@@ -66,11 +66,11 @@ function createExecutionCore(overrides = {}) {
     return contract.ExecutionSuccessSchema.parse({ ok: true });
   }
 
-  function rememberCompleted(run) {
+  function rememberCompleted(run, finishedAt = timestamp(dependencies.now())) {
     if (run.completed) return;
     run.completed = true;
     run.lifecycle = 'COMPLETED';
-    run.finishedAt = timestamp(dependencies.now());
+    run.finishedAt = finishedAt;
 
     if (activeRunId === run.runId) activeRunId = null;
     if (startReservation === run.reservation) startReservation = null;
@@ -96,10 +96,15 @@ function createExecutionCore(overrides = {}) {
   }
 
   function finishWithKnownOutcome(run, outcome, errorCode = null, summary = EMPTY_SUMMARY) {
-    rememberCompleted(run);
+    if (run.completed) return;
+    const finishedAt = timestamp(dependencies.now());
+    // Validate the structured result before marking the run terminal or
+    // releasing its active slot. Invalid reporter data must fail closed.
+    const result = makeResult({ ...run, finishedAt }, outcome, errorCode, summary);
+    rememberCompleted(run, finishedAt);
     run.outcome = outcome;
     run.errorCode = errorCode;
-    run.result = makeResult(run, outcome, errorCode, summary);
+    run.result = result;
   }
 
   async function finalizeNaturalExit(run) {
