@@ -62,3 +62,17 @@ jobs:
       - run: npm ci
       - name: Verify cancellation and timeout terminate parent and grandchild
         run: node --test tests/integration/execution-process-tree.test.js
+
+  windows-cli-compatibility:
+    name: Windows CLI compatibility qualification
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify legacy CLI and core report isolation on Windows
+        run: node --test tests/integration/cli-compatibility.test.js
