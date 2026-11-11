@@ -7,6 +7,7 @@ const timers = require('node:timers');
 
 const contract = require('./execution-contract');
 const defaultCatalog = require('./test-catalog');
+const { createRunReporter } = require('./run-report');
 
 const REPOSITORY_ROOT = path.resolve(__dirname, '../..');
 const PLAYWRIGHT_CLI_PATH = path.join(
@@ -42,6 +43,7 @@ function createExecutionCore(overrides = {}) {
     now: overrides.now || Date.now,
     randomUUID: overrides.randomUUID || randomUUID,
     catalog: overrides.catalog || defaultCatalog,
+    reporter: overrides.reporter || createRunReporter(overrides.repositoryRoot || REPOSITORY_ROOT),
     platform: overrides.platform || process.platform,
     execPath: overrides.execPath || process.execPath,
     playwrightCliPath: overrides.playwrightCliPath || PLAYWRIGHT_CLI_PATH,
@@ -64,11 +66,11 @@ function createExecutionCore(overrides = {}) {
     return contract.ExecutionSuccessSchema.parse({ ok: true });
   }
 
-  function rememberCompleted(run) {
+  function rememberCompleted(run, finishedAt = timestamp(dependencies.now())) {
     if (run.completed) return;
     run.completed = true;
     run.lifecycle = 'COMPLETED';
-    run.finishedAt = timestamp(dependencies.now());
+    run.finishedAt = finishedAt;
 
     if (activeRunId === run.runId) activeRunId = null;
     if (startReservation === run.reservation) startReservation = null;
@@ -80,7 +82,7 @@ function createExecutionCore(overrides = {}) {
     }
   }
 
-  function makeResult(run, outcome, errorCode = null) {
+  function makeResult(run, outcome, errorCode = null, summary = EMPTY_SUMMARY) {
     const durationMs = Math.max(0, dependencies.now() - run.startedAtMs);
     return contract.RunResultSchema.parse({
       runId: run.runId,
@@ -88,29 +90,37 @@ function createExecutionCore(overrides = {}) {
       startedAt: run.startedAt,
       finishedAt: run.finishedAt,
       durationMs,
-      summary: { ...EMPTY_SUMMARY },
+      summary: { ...summary },
       errorCode,
     });
   }
 
-  function finishWithKnownOutcome(run, outcome, errorCode = null) {
-    rememberCompleted(run);
+  function finishWithKnownOutcome(run, outcome, errorCode = null, summary = EMPTY_SUMMARY) {
+    if (run.completed) return;
+    const finishedAt = timestamp(dependencies.now());
+    // Validate the structured result before marking the run terminal or
+    // releasing its active slot. Invalid reporter data must fail closed.
+    const result = makeResult({ ...run, finishedAt }, outcome, errorCode, summary);
+    rememberCompleted(run, finishedAt);
     run.outcome = outcome;
     run.errorCode = errorCode;
-    if (outcome === 'NO_TESTS' || (outcome === 'ERROR' && errorCode === 'EXECUTION_START_FAILED')) {
-      run.result = makeResult(run, outcome, errorCode);
-    } else {
-      run.result = null;
-    }
+    run.result = result;
   }
 
-  function finishWithoutClassifiedOutcome(run) {
-    rememberCompleted(run);
-    // P2.4 classifies a natural process exit from its isolated Playwright JSON report.
-    // Exit code alone is deliberately not promoted to PASSED or FAILED here.
-    run.outcome = undefined;
-    run.errorCode = undefined;
-    run.result = null;
+  async function finalizeNaturalExit(run) {
+    try {
+      const classification = await dependencies.reporter.readRun(
+        run.runId, run.exitCode, run.signal,
+      );
+      if (run.completed || run.terminationReason) return;
+      finishWithKnownOutcome(
+        run, classification.outcome, classification.errorCode, classification.summary,
+      );
+    } catch {
+      if (!run.completed && !run.terminationReason) {
+        finishWithKnownOutcome(run, 'ERROR', 'REPORT_INVALID');
+      }
+    }
   }
 
   function delay(milliseconds) {
@@ -299,6 +309,13 @@ function createExecutionCore(overrides = {}) {
 
     if (startReservation !== reservation) return publicError('EXECUTION_BUSY');
 
+    try {
+      await dependencies.reporter.prepareRun(runId);
+    } catch {
+      if (startReservation === reservation) startReservation = null;
+      return publicError('REPORT_INVALID');
+    }
+
     const args = [
       '--env-file-if-exists=' + path.join(dependencies.repositoryRoot, '.env'),
       dependencies.playwrightCliPath,
@@ -312,7 +329,7 @@ function createExecutionCore(overrides = {}) {
     try {
       child = dependencies.spawn(dependencies.execPath, args, {
         cwd: dependencies.repositoryRoot,
-        env: dependencies.env,
+        env: { ...dependencies.env, PQF_EXECUTION_RUN_ID: runId },
         stdio: 'ignore',
         shell: false,
         windowsHide: true,
@@ -368,7 +385,7 @@ function createExecutionCore(overrides = {}) {
       } else if (run.spawnError) {
         finishWithKnownOutcome(run, 'ERROR', 'EXECUTION_START_FAILED');
       } else {
-        finishWithoutClassifiedOutcome(run);
+        void finalizeNaturalExit(run);
       }
     });
 
@@ -419,7 +436,7 @@ function createExecutionCore(overrides = {}) {
     if (!contract.RunIdSchema.safeParse(runId).success) return publicError('INVALID_INPUT');
     const run = runs.get(runId);
     if (!run) return publicError('RUN_NOT_FOUND');
-    if (run.completed) return publicError('CANCEL_NOT_ALLOWED');
+    if (run.completed || (run.childClosed && !run.terminationReason)) return publicError('CANCEL_NOT_ALLOWED');
     if (run.lifecycle === 'CANCELLING') return publicSuccess();
 
     try {
