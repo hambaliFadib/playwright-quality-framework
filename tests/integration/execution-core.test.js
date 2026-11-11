@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const { setImmediate: scheduleImmediate } = require('node:timers');
 const test = require('node:test');
 
 const { _createExecutionCore } = require('../../src/core/execution-core');
@@ -111,7 +112,7 @@ async function start(harness, input = { target: SPEC.target }) {
 }
 
 async function flushAsyncLifecycle() {
-  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => scheduleImmediate(resolve));
 }
 
 test('starts the fixed Node Playwright CLI asynchronously with shell disabled', async () => {
