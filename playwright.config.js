@@ -1,5 +1,6 @@
 const { defineConfig, devices } = require('@playwright/test');
 const { isPqpReporterEnabled, hasValidOptInValue } = require('./src/integration/pqp-reporter-config');
+const { outputFileFromEnvironment } = require('./src/core/run-report');
 
 const pqpEvidenceOptIn = process.env.PQF_EVIDENCE_ENABLED;
 if (!hasValidOptInValue(pqpEvidenceOptIn)) {
@@ -9,7 +10,7 @@ if (!hasValidOptInValue(pqpEvidenceOptIn)) {
 const reporters = [
   ['list'],
   ['html', { outputFolder: 'playwright-report', open: 'never' }],
-  ['json', { outputFile: 'artifacts/playwright-results.json' }],
+  ['json', { outputFile: outputFileFromEnvironment(__dirname) }],
 ];
 if (isPqpReporterEnabled(pqpEvidenceOptIn)) reporters.push(['./src/integration/pqp-reporter.js']);
 

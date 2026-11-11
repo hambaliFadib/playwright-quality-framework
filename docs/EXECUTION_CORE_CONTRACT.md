@@ -62,3 +62,13 @@ P2.1 defines schemas and validators only. Catalogue discovery, filesystem/symlin
 - An empty suite:all completes immediately with NO_TESTS.
 - A natural process exit records COMPLETED lifecycle but leaves the outcome unavailable. P2.4 must classify it from a valid per-run Playwright JSON report; exit code 0 is never treated as PASSED.
 - Process IDs, exit details, absolute spec paths, stdout/stderr, and environment values remain internal and are not returned by the public API.
+
+
+## P2.4 — Per-run reporter isolation and result classification
+
+- Human CLI runs keep the original artifacts/playwright-results.json output. Core-managed runs inject a validated internal PQF_EXECUTION_RUN_ID and write to artifacts/runs/<runId>/playwright-results.json.
+- A new run directory is created exclusively; stale UUID directories and symlinked paths fail closed. Reporter file size is bounded to 16 MiB.
+- JSON statistics must be valid non-negative counts and match the nested Playwright test statuses. Mismatches, missing, malformed, or oversized evidence return ERROR / REPORT_INVALID.
+- PASSED requires a positive expected test count, zero unexpected/flaky/skipped tests, no reporter errors, and exit code zero. Bad test statuses yield FAILED; a clean zero-test report yields NO_TESTS.
+- Terminal cancellation, timeout, and cleanup errors use lifecycle evidence instead of an incomplete reporter. Report parsing must finish before releasing the active slot.
+- Only structured status, outcome, summary, timestamps and stable error codes are public. Reporter paths and raw report content remain private. Disk evidence retention policy remains P3 scope.
