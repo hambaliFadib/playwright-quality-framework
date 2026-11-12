@@ -50,7 +50,7 @@ async function pruneExpiredRunEvidence(repositoryRoot, now = Date.now()) {
     }
   } catch (error) {
     if (error && error.code === 'ENOENT') return;
-    throw new Error('REPORT_INVALID');
+    throw new Error('REPORT_INVALID', { cause: error });
   }
 }
 
