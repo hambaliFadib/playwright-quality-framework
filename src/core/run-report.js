@@ -1,12 +1,15 @@
 'use strict';
 
 const fs = require('node:fs/promises');
+const fsConstants = require('node:fs').constants;
 const path = require('node:path');
 const { RunIdSchema, RunSummarySchema } = require('./execution-contract');
 
 const REPORT_FILE_NAME = 'playwright-results.json';
 const MAX_REPORT_BYTES = 16 * 1024 * 1024;
 const MAX_REPORT_TESTS = 1_000_000;
+const EVIDENCE_RETENTION_DAYS = 30;
+const EVIDENCE_RETENTION_MS = EVIDENCE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
 function runReportFile(repositoryRoot, runId) {
   if (!RunIdSchema.safeParse(runId).success) throw new Error('REPORT_INVALID');
@@ -26,6 +29,31 @@ async function assertDirectory(directory) {
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('REPORT_INVALID');
 }
 
+async function pruneExpiredRunEvidence(repositoryRoot, now = Date.now()) {
+  const runs = path.join(repositoryRoot, 'artifacts', 'runs');
+  try {
+    await assertDirectory(path.join(repositoryRoot, 'artifacts'));
+    await assertDirectory(runs);
+    const entries = await fs.readdir(runs, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!RunIdSchema.safeParse(entry.name).success) continue;
+      const candidate = path.join(runs, entry.name);
+      let stat;
+      try {
+        stat = await fs.lstat(candidate);
+      } catch {
+        continue;
+      }
+      if (!stat.isDirectory() || stat.isSymbolicLink()) continue;
+      if (now - stat.mtimeMs <= EVIDENCE_RETENTION_MS) continue;
+      await fs.rm(candidate, { recursive: true, force: false });
+    }
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return;
+    throw new Error('REPORT_INVALID', { cause: error });
+  }
+}
+
 async function prepareRun(repositoryRoot, runId) {
   const reportPath = runReportFile(repositoryRoot, runId);
   const artifacts = path.join(repositoryRoot, 'artifacts');
@@ -34,11 +62,15 @@ async function prepareRun(repositoryRoot, runId) {
   try {
     await fs.mkdir(artifacts, { recursive: true, mode: 0o700 });
     await assertDirectory(artifacts);
+    await fs.chmod(artifacts, 0o700);
     await fs.mkdir(runs, { recursive: true, mode: 0o700 });
     await assertDirectory(runs);
+    await fs.chmod(runs, 0o700);
     // Exclusive mkdir ensures a repeated UUID cannot read a previous run's report.
     await fs.mkdir(own, { mode: 0o700 });
     await assertDirectory(own);
+    await fs.chmod(own, 0o700);
+    await pruneExpiredRunEvidence(repositoryRoot);
   } catch {
     throw new Error('REPORT_INVALID');
   }
@@ -111,11 +143,23 @@ async function readRun(repositoryRoot, runId, exitCode, signal = null) {
     await assertDirectory(path.join(repositoryRoot, 'artifacts'));
     await assertDirectory(path.join(repositoryRoot, 'artifacts', 'runs'));
     await assertDirectory(path.dirname(file));
-    const stat = await fs.lstat(file);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.size === 0 ||
-        stat.size > MAX_REPORT_BYTES) throw new Error('REPORT_INVALID');
-    const content = await fs.readFile(file, 'utf8');
-    if (Buffer.byteLength(content, 'utf8') > MAX_REPORT_BYTES) throw new Error('REPORT_INVALID');
+    const leaf = await fs.lstat(file);
+    if (!leaf.isFile() || leaf.isSymbolicLink()) throw new Error('REPORT_INVALID');
+    const noFollow = fsConstants.O_NOFOLLOW || 0;
+    const handle = await fs.open(file, fsConstants.O_RDONLY | noFollow);
+    let content;
+    try {
+      const stat = await handle.stat();
+      if (!stat.isFile() || stat.size === 0 || stat.size > MAX_REPORT_BYTES) {
+        throw new Error('REPORT_INVALID');
+      }
+      content = await handle.readFile({ encoding: 'utf8' });
+      if (Buffer.byteLength(content, 'utf8') > MAX_REPORT_BYTES) {
+        throw new Error('REPORT_INVALID');
+      }
+    } finally {
+      await handle.close();
+    }
     return classifyReport(JSON.parse(content), exitCode, signal);
   } catch {
     throw new Error('REPORT_INVALID');
@@ -136,4 +180,5 @@ module.exports = {
   _prepareRun: prepareRun,
   _readRun: readRun,
   _runReportFile: runReportFile,
+  _pruneExpiredRunEvidence: pruneExpiredRunEvidence,
 };

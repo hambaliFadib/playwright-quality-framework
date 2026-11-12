@@ -76,3 +76,5 @@ jobs:
       - run: npm ci
       - name: Verify legacy CLI and core report isolation on Windows
         run: node --test tests/integration/cli-compatibility.test.js
+      - name: Verify evidence retention and filesystem protections on Windows
+        run: node --test tests/integration/run-report.test.js

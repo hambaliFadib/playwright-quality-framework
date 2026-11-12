@@ -12,6 +12,7 @@ const {
   createRunReporter,
   _readRun,
   _runReportFile,
+  _pruneExpiredRunEvidence,
 } = require('../../src/core/run-report');
 
 const IDS = [
@@ -158,4 +159,69 @@ test('public summaries and classification never include raw reporter content', (
   const result = classifyReport(doc, 0);
   assert.deepEqual(Object.keys(result).sort(), ['errorCode', 'outcome', 'summary']);
   assert.equal(JSON.stringify(result).includes('Sensitive test details'), false);
+});
+
+
+test('expired UUID evidence is pruned after the 30-day retention window', async t => {
+  const { folder, reporter } = await fixture(t);
+  const expired = await reporter.prepareRun(IDS[0]);
+  const recent = await reporter.prepareRun(IDS[1]);
+  await fs.writeFile(expired, JSON.stringify(report(['expected'])));
+  await fs.writeFile(recent, JSON.stringify(report(['expected'])));
+  const old = new Date(Date.now() - (31 * 24 * 60 * 60 * 1000));
+  await fs.utimes(path.dirname(expired), old, old);
+  await _pruneExpiredRunEvidence(folder);
+  await assert.rejects(fs.access(path.dirname(expired)));
+  await fs.access(path.dirname(recent));
+});
+
+test('retention pruning ignores non-UUID names and symlinked run directories', async t => {
+  const { folder, reporter } = await fixture(t);
+  const own = await reporter.prepareRun(IDS[0]);
+  const runs = path.dirname(path.dirname(own));
+  const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'pqf-retention-outside-'));
+  t.after(async () => fs.rm(outside, { recursive: true, force: true }));
+  const protectedFile = path.join(outside, 'keep.txt');
+  await fs.writeFile(protectedFile, 'keep');
+  const link = path.join(runs, IDS[1]);
+  await fs.symlink(outside, link, process.platform === 'win32' ? 'junction' : 'dir');
+  await _pruneExpiredRunEvidence(folder, Date.now() + (31 * 24 * 60 * 60 * 1000));
+  await fs.access(protectedFile);
+  await fs.lstat(link);
+});
+
+test('report reader rejects a symlinked report file', async t => {
+  const { reporter } = await fixture(t);
+  const file = await reporter.prepareRun(IDS[0]);
+  const outside = path.join(path.dirname(file), 'outside.json');
+  await fs.writeFile(outside, JSON.stringify(report(['expected'])));
+  await fs.unlink(file).catch(() => {});
+  try {
+    await fs.symlink(outside, file, process.platform === 'win32' ? 'file' : undefined);
+  } catch (error) {
+    if (process.platform === 'win32' && ['EPERM', 'EACCES'].includes(error.code)) {
+      t.skip('Windows file symlink creation requires elevated privileges; POSIX CI covers O_NOFOLLOW');
+      return;
+    }
+    throw error;
+  }
+  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+});
+
+
+test('evidence directories are created with owner-only permissions on POSIX', async t => {
+  if (process.platform === 'win32') {
+    t.skip('POSIX mode bits are not a Windows ACL assertion');
+    return;
+  }
+  const { folder, reporter } = await fixture(t);
+  const reportPath = await reporter.prepareRun(IDS[0]);
+  for (const directory of [
+    path.join(folder, 'artifacts'),
+    path.join(folder, 'artifacts', 'runs'),
+    path.dirname(reportPath),
+  ]) {
+    const stat = await fs.stat(directory);
+    assert.equal(stat.mode & 0o777, 0o700);
+  }
 });
