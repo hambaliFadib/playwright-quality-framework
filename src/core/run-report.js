@@ -143,6 +143,8 @@ async function readRun(repositoryRoot, runId, exitCode, signal = null) {
     await assertDirectory(path.join(repositoryRoot, 'artifacts'));
     await assertDirectory(path.join(repositoryRoot, 'artifacts', 'runs'));
     await assertDirectory(path.dirname(file));
+    const leaf = await fs.lstat(file);
+    if (!leaf.isFile() || leaf.isSymbolicLink()) throw new Error('REPORT_INVALID');
     const noFollow = fsConstants.O_NOFOLLOW || 0;
     const handle = await fs.open(file, fsConstants.O_RDONLY | noFollow);
     let content;
