@@ -196,6 +196,32 @@ test('report reader rejects a symlinked report file', async t => {
   const outside = path.join(path.dirname(file), 'outside.json');
   await fs.writeFile(outside, JSON.stringify(report(['expected'])));
   await fs.unlink(file).catch(() => {});
-  await fs.symlink(outside, file, process.platform === 'win32' ? 'file' : undefined);
+  try {
+    await fs.symlink(outside, file, process.platform === 'win32' ? 'file' : undefined);
+  } catch (error) {
+    if (process.platform === 'win32' && ['EPERM', 'EACCES'].includes(error.code)) {
+      t.skip('Windows file symlink creation requires elevated privileges; POSIX CI covers O_NOFOLLOW');
+      return;
+    }
+    throw error;
+  }
   await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+});
+
+
+test('evidence directories are created with owner-only permissions on POSIX', async t => {
+  if (process.platform === 'win32') {
+    t.skip('POSIX mode bits are not a Windows ACL assertion');
+    return;
+  }
+  const { folder, reporter } = await fixture(t);
+  const reportPath = await reporter.prepareRun(IDS[0]);
+  for (const directory of [
+    path.join(folder, 'artifacts'),
+    path.join(folder, 'artifacts', 'runs'),
+    path.dirname(reportPath),
+  ]) {
+    const stat = await fs.stat(directory);
+    assert.equal(stat.mode & 0o777, 0o700);
+  }
 });
