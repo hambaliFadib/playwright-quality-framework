@@ -72,3 +72,12 @@ P2.1 defines schemas and validators only. Catalogue discovery, filesystem/symlin
 - PASSED requires a positive expected test count, zero unexpected/flaky/skipped tests, no reporter errors, and exit code zero. Bad test statuses yield FAILED; a clean zero-test report yields NO_TESTS.
 - Terminal cancellation, timeout, and cleanup errors use lifecycle evidence instead of an incomplete reporter. Report parsing must finish before releasing the active slot.
 - Only structured status, outcome, summary, timestamps and stable error codes are public. Reporter paths and raw report content remain private. Disk evidence retention policy remains P3 scope.
+
+
+## P3 — Security and evidence hardening (qualification pending)
+
+- Run report files are opened with no-follow semantics where supported and validated through the opened file handle to reduce report-file symlink substitution risk.
+- Evidence directories are created with owner-only mode (0700) and their mode is re-applied when a run is prepared. Windows filesystem ACL behavior remains platform-defined and must be verified in Windows qualification.
+- UUID-named run evidence older than 30 days is pruned when a new run is prepared. Non-UUID entries and symlinked run directories are not traversed or deleted. Retention is age-based on the run directory modification time; this is not a legal/audit retention guarantee.
+- Report size remains bounded to 16 MiB. Raw report content, test titles, and filesystem paths remain excluded from public execution results.
+- Qualification must cover expired/recent evidence, symlinked files/directories, permission behavior, and Windows/Linux filesystem differences. P3 is not complete until these tests and security review pass.
