@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs/promises');
+const fsConstants = require('node:fs').constants;
 const path = require('node:path');
 const { RunIdSchema, RunSummarySchema } = require('./execution-contract');
 
@@ -61,11 +62,14 @@ async function prepareRun(repositoryRoot, runId) {
   try {
     await fs.mkdir(artifacts, { recursive: true, mode: 0o700 });
     await assertDirectory(artifacts);
+    await fs.chmod(artifacts, 0o700);
     await fs.mkdir(runs, { recursive: true, mode: 0o700 });
     await assertDirectory(runs);
+    await fs.chmod(runs, 0o700);
     // Exclusive mkdir ensures a repeated UUID cannot read a previous run's report.
     await fs.mkdir(own, { mode: 0o700 });
     await assertDirectory(own);
+    await fs.chmod(own, 0o700);
     await pruneExpiredRunEvidence(repositoryRoot);
   } catch {
     throw new Error('REPORT_INVALID');
@@ -139,8 +143,8 @@ async function readRun(repositoryRoot, runId, exitCode, signal = null) {
     await assertDirectory(path.join(repositoryRoot, 'artifacts'));
     await assertDirectory(path.join(repositoryRoot, 'artifacts', 'runs'));
     await assertDirectory(path.dirname(file));
-    const noFollow = fs.constants.O_NOFOLLOW || 0;
-    const handle = await fs.open(file, fs.constants.O_RDONLY | noFollow);
+    const noFollow = fsConstants.O_NOFOLLOW || 0;
+    const handle = await fs.open(file, fsConstants.O_RDONLY | noFollow);
     let content;
     try {
       const stat = await handle.stat();
