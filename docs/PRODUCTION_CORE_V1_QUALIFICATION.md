@@ -23,7 +23,7 @@ P4 is the final release gate for Production Core v1. A successful merge is not a
 - Missing, malformed, oversized, stale, mismatched, or foreign run evidence must fail closed.
 - A timeout/cancellation must remain non-terminal until child close and process-tree cleanup complete.
 - A failed process-tree cleanup must produce ERROR / PROCESS_CLEANUP_FAILED, not CANCELLED.
-- A concurrent start must not create a second active execution.
+- A concurrent start must not create a second active execution.\n- A real Playwright process started through the execution core must produce a per-run report and a matching structured terminal result.
 - Invalid target paths and symlinked catalogue/report paths must be rejected.
 - Public results must not expose stdout, stderr, stack traces, process IDs, absolute paths, raw reporter content, or credentials.
 
