@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const { setImmediate: scheduleImmediate } = require('node:timers');
 const test = require('node:test');
 
 const { Client, InMemoryTransport } = require('@modelcontextprotocol/client');
@@ -245,7 +246,7 @@ test('MCP result becomes available only after a natural process close and valida
   assertToolResult(beforeClose, { available: false, runId: RUN_ID });
 
   h.child.emit('close', 0, null);
-  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => scheduleImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
 
   const status = await client.callTool({
