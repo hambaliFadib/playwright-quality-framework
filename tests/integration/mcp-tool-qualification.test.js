@@ -144,14 +144,14 @@ test('all five MCP tools exercise the real execution core through MCP protocol t
   const completed = await client.callTool({ name: 'get_run_status', arguments: { runId: RUN_ID } });
   assertToolResult(completed, {
     runId: RUN_ID, lifecycle: 'COMPLETED', startedAt: STARTED_AT,
-    finishedAt: '2026-11-16T00:00:00.002Z', outcome: 'CANCELLED',
+    finishedAt: '2026-11-16T00:00:00.001Z', outcome: 'CANCELLED',
   });
   const available = await client.callTool({ name: 'get_run_result', arguments: { runId: RUN_ID } });
   assertToolResult(available, {
     available: true,
     result: {
       runId: RUN_ID, outcome: 'CANCELLED', startedAt: STARTED_AT,
-      finishedAt: '2026-11-16T00:00:00.002Z', durationMs: 2,
+      finishedAt: '2026-11-16T00:00:00.001Z', durationMs: 1,
       summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0 }, errorCode: null,
     },
   });
