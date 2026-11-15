@@ -137,7 +137,7 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls[0].command, '/usr/bin/node');
   assert.deepEqual(harness.spawnCalls[0].args, [
     '--env-file-if-exists=/repo/.env',
-    '/repo/scripts/run-execution.js',
+    require.resolve('../../scripts/run-execution.js'),
     '/repo/node_modules/@playwright/test/cli.js',
     'test',
     ABSOLUTE_SPEC,
