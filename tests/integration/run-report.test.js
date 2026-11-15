@@ -150,7 +150,7 @@ test('report parsing rejects malformed JSON, symlinked files, and oversized file
   await fs.writeFile(file, '{not-json');
   await assert.rejects(reporter.readRun(IDS[0], tokenFor(IDS[0]), 0), /REPORT_INVALID/);
   await fs.writeFile(file, 'x'.repeat(16 * 1024 * 1024 + 1));
-  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+  await assert.rejects(reporter.readRun(IDS[0], tokenFor(IDS[0]), 0), /REPORT_INVALID/);
 });
 
 test('symlinked report directory is not accepted for reading', async t => {
@@ -162,7 +162,7 @@ test('symlinked report directory is not accepted for reading', async t => {
   t.after(async () => fs.rm(outside, { recursive: true, force: true }));
   await fs.rename(directory, path.join(outside, 'real-dir'));
   await fs.symlink(path.join(outside, 'real-dir'), directory, process.platform === 'win32' ? 'junction' : 'dir');
-  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+  await assert.rejects(reporter.readRun(IDS[0], tokenFor(IDS[0]), 0), /REPORT_INVALID/);
 });
 
 test('public summaries and classification never include raw reporter content', () => {
@@ -218,7 +218,7 @@ test('report reader rejects a symlinked report file', async t => {
     }
     throw error;
   }
-  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+  await assert.rejects(reporter.readRun(IDS[0], tokenFor(IDS[0]), 0), /REPORT_INVALID/);
 });
 
 
