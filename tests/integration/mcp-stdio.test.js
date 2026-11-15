@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { once } = require('node:events');
 const test = require('node:test');
 
 const { Client } = require('@modelcontextprotocol/client');
@@ -10,7 +9,6 @@ const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
 
 const ROOT = path.resolve(__dirname, '../..');
 const ENTRY = path.join(ROOT, 'scripts', 'run-mcp-server.js');
-const RUN_ID = '123e4567-e89b-42d3-a456-426614174000';
 
 test('MCP stdio server performs handshake, advertises five tools, and routes validated calls', async () => {
   const transport = new StdioClientTransport({
@@ -29,7 +27,11 @@ test('MCP stdio server performs handshake, advertises five tools, and routes val
 
     const catalogue = await client.callTool({ name: 'list_tests', arguments: {} });
     assert.deepEqual(catalogue.structuredContent, {
-      tests: [{ id: 'spec:auth/login.spec.js', relativePath: 'auth/login.spec.js' }],
+      tests: [
+        { id: 'spec:auth/login.spec.js', relativePath: 'auth/login.spec.js' },
+        { id: 'spec:cart/add-to-cart.spec.js', relativePath: 'cart/add-to-cart.spec.js' },
+        { id: 'spec:cart/remove-from-cart.spec.js', relativePath: 'cart/remove-from-cart.spec.js' },
+      ],
     });
 
     const unknown = await client.callTool({
