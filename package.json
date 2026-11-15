@@ -23,7 +23,8 @@
     "integration:qualify:full": "node scripts/qualify-pqp-integration.js",
     "integration:qualify:e2e": "node scripts/qualify-pqp-e2e.js",
     "validate:framework": "npm run lint && npm run policy:check && npm run secret:check && npm run integration:selftest && npm run contract:ai && npm run policy:selftest && npm run triage:selftest",
-    "validate": "npm run validate:framework && npm run test:e2e"
+    "validate": "npm run validate:framework && npm run test:e2e",
+    "test:execution-core": "node scripts/run-execution.js ./node_modules/@playwright/test/cli.js test"
   },
   "keywords": [],
   "author": "",
