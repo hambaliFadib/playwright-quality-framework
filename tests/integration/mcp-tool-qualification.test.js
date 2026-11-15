@@ -247,7 +247,7 @@ test('MCP result becomes available only after a natural process close and valida
 
   h.child.emit('close', 0, null);
   await new Promise(resolve => scheduleImmediate(resolve));
-  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => scheduleImmediate(resolve));
 
   const status = await client.callTool({
     name: 'get_run_status', arguments: { runId: RUN_ID },
