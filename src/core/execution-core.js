@@ -1,7 +1,7 @@
 'use strict';
 
 const { spawn } = require('node:child_process');
-const { randomUUID } = require('node:crypto');
+const { randomBytes, randomUUID } = require('node:crypto');
 const path = require('node:path');
 const timers = require('node:timers');
 
@@ -110,7 +110,7 @@ function createExecutionCore(overrides = {}) {
   async function finalizeNaturalExit(run) {
     try {
       const classification = await dependencies.reporter.readRun(
-        run.runId, run.exitCode, run.signal,
+        run.runId, run.reportToken, run.exitCode, run.signal,
       );
       if (run.completed || run.terminationReason) return;
       finishWithKnownOutcome(
@@ -272,6 +272,7 @@ function createExecutionCore(overrides = {}) {
     if (startReservation !== reservation) return publicError('EXECUTION_BUSY');
 
     const runId = dependencies.randomUUID();
+    const reportToken = randomBytes(32).toString('hex');
     const startedAtMs = dependencies.now();
     const startedAt = timestamp(startedAtMs);
 
@@ -329,7 +330,11 @@ function createExecutionCore(overrides = {}) {
     try {
       child = dependencies.spawn(dependencies.execPath, args, {
         cwd: dependencies.repositoryRoot,
-        env: { ...dependencies.env, PQF_EXECUTION_RUN_ID: runId },
+        env: {
+          ...dependencies.env,
+          PQF_EXECUTION_RUN_ID: runId,
+          PQF_EXECUTION_REPORT_TOKEN: reportToken,
+        },
         stdio: 'ignore',
         shell: false,
         windowsHide: true,
@@ -342,6 +347,7 @@ function createExecutionCore(overrides = {}) {
 
     const run = {
       runId,
+      reportToken,
       lifecycle: 'RUNNING',
       startedAt,
       startedAtMs,
