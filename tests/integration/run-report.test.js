@@ -215,7 +215,7 @@ test('retention pruning ignores non-UUID names and symlinked run directories', a
 });
 
 test('report reader rejects a symlinked report file', async t => {
-  const { reporter } = await fixture(t);
+  const { folder, reporter } = await fixture(t);
   const file = await reporter.prepareRun(IDS[0]);
   const outside = path.join(path.dirname(file), 'outside.json');
   await fs.writeFile(outside, JSON.stringify(report(['expected'])));
@@ -230,7 +230,7 @@ test('report reader rejects a symlinked report file', async t => {
     throw error;
   }
   // The manifest must match the symlink target so the reader reaches the leaf-file check.
-  await writeManifest(path.dirname(path.dirname(file)), IDS[0]);
+  await writeManifest(folder, IDS[0]);
   await assert.rejects(reporter.readRun(IDS[0], tokenFor(IDS[0]), 0), /REPORT_INVALID/);
 });
 
