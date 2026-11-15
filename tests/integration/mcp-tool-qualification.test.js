@@ -150,7 +150,7 @@ test('all five MCP tools exercise the real execution core through MCP protocol t
     available: true,
     result: {
       runId: RUN_ID, outcome: 'CANCELLED', startedAt: STARTED_AT,
-      finishedAt: '2026-11-16T00:00:00.002Z', durationMs: 2,
+      finishedAt: '2026-11-16T00:00:00.002Z', durationMs: 1,
       summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0 }, errorCode: null,
     },
   });
@@ -227,4 +227,39 @@ test('MCP adapter rejects unexpected core fields instead of exposing process or 
   for (const forbidden of ['/private/report.json', SECRET, '6543', 'processId', 'rawReport', 'stdout']) {
     assert.equal(output.includes(forbidden), false, 'MCP adapter leaked ' + forbidden);
   }
+});
+
+
+test('MCP result becomes available only after a natural process close and validated PASS report', async t => {
+  const h = createCoreHarness();
+  const connection = await connectMcp(h.core);
+  t.after(connection.close);
+  const { client } = connection;
+
+  const started = await client.callTool({ name: 'start_run', arguments: { target: SPEC_TARGET } });
+  assert.equal(started.structuredContent.lifecycle, 'RUNNING');
+
+  const beforeClose = await client.callTool({
+    name: 'get_run_result', arguments: { runId: RUN_ID },
+  });
+  assertToolResult(beforeClose, { available: false, runId: RUN_ID });
+
+  h.child.emit('close', 0, null);
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+
+  const status = await client.callTool({
+    name: 'get_run_status', arguments: { runId: RUN_ID },
+  });
+  assert.equal(status.structuredContent.lifecycle, 'COMPLETED');
+  assert.equal(status.structuredContent.outcome, 'PASSED');
+
+  const result = await client.callTool({
+    name: 'get_run_result', arguments: { runId: RUN_ID },
+  });
+  assert.equal(result.structuredContent.available, true);
+  assert.deepEqual(result.structuredContent.result.summary, {
+    total: 1, passed: 1, failed: 0, skipped: 0, flaky: 0,
+  });
+  assert.equal(result.structuredContent.result.outcome, 'PASSED');
 });
