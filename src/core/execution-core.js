@@ -10,6 +10,7 @@ const defaultCatalog = require('./test-catalog');
 const { createRunReporter } = require('./run-report');
 
 const REPOSITORY_ROOT = path.resolve(__dirname, '../..');
+const EXECUTION_RUNNER_PATH = path.join(REPOSITORY_ROOT, 'scripts', 'run-execution.js');
 const PLAYWRIGHT_CLI_PATH = path.join(
   REPOSITORY_ROOT,
   'node_modules',
@@ -319,6 +320,7 @@ function createExecutionCore(overrides = {}) {
 
     const args = [
       '--env-file-if-exists=' + path.join(dependencies.repositoryRoot, '.env'),
+      EXECUTION_RUNNER_PATH,
       dependencies.playwrightCliPath,
       'test',
       ...absoluteSpecPaths,
