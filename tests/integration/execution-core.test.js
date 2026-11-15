@@ -137,6 +137,7 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls[0].command, '/usr/bin/node');
   assert.deepEqual(harness.spawnCalls[0].args, [
     '--env-file-if-exists=/repo/.env',
+    require.resolve('../../scripts/run-execution.js'),
     '/repo/node_modules/@playwright/test/cli.js',
     'test',
     ABSOLUTE_SPEC,
@@ -150,6 +151,7 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls[0].options.stdio, 'ignore');
   assert.equal(harness.spawnCalls[0].options.env[['SAUCEDEMO', 'PASSWORD'].join('_')], 'not-returned');
   assert.equal(harness.spawnCalls[0].options.env.PQF_EXECUTION_RUN_ID, RUN_IDS[0]);
+  assert.match(harness.spawnCalls[0].options.env.PQF_EXECUTION_REPORT_TOKEN, /^[a-f0-9]{64}$/);
 });
 
 test('loads only the fixed repository .env file while preserving inherited environment', async () => {

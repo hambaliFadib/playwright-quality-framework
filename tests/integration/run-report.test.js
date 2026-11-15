@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { createHash, randomBytes } = require('node:crypto');
 const test = require('node:test');
 
 const {
@@ -12,8 +13,19 @@ const {
   createRunReporter,
   _readRun,
   _runReportFile,
+  _runReportManifest,
   _pruneExpiredRunEvidence,
 } = require('../../src/core/run-report');
+
+const TOKENS = [randomBytes(32).toString('hex'), randomBytes(32).toString('hex')];
+const tokenFor = id => TOKENS[IDS.indexOf(id)];
+
+async function writeManifest(folder, id, token = tokenFor(id)) {
+  const reportPath = _runReportFile(folder, id);
+  const bytes = await fs.readFile(reportPath);
+  const manifest = { version: 1, runId: id, reportToken: token, reportSha256: createHash('sha256').update(bytes).digest('hex') };
+  await fs.writeFile(_runReportManifest(folder, id), JSON.stringify(manifest), { flag: 'wx', mode: 0o600 });
+}
 
 const IDS = [
   '123e4567-e89b-42d3-a456-426614174000',
@@ -125,19 +137,31 @@ test('missing current-run report does not fall back to a previous valid report',
   const { folder, reporter } = await fixture(t);
   const previous = await reporter.prepareRun(IDS[0]);
   await fs.writeFile(previous, JSON.stringify(report(['expected'])));
+  await writeManifest(folder, IDS[0]);
   await reporter.prepareRun(IDS[1]);
-  await assert.rejects(reporter.readRun(IDS[1], 0), /REPORT_INVALID/);
-  assert.equal((await reporter.readRun(IDS[0], 0)).outcome, 'PASSED');
-  assert.equal((await _readRun(folder, IDS[0], 0)).summary.passed, 1);
+  await assert.rejects(reporter.readRun(IDS[1], tokenFor(IDS[1]), 0), /REPORT_INVALID/);
+  assert.equal((await reporter.readRun(IDS[0], tokenFor(IDS[0]), 0)).outcome, 'PASSED');
+  assert.equal((await _readRun(folder, IDS[0], tokenFor(IDS[0]), 0)).summary.passed, 1);
 });
 
-test('report parsing rejects malformed JSON, symlinked files, and oversized files', async t => {
-  const { reporter } = await fixture(t);
-  const file = await reporter.prepareRun(IDS[0]);
-  await fs.writeFile(file, '{not-json');
-  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
-  await fs.writeFile(file, 'x'.repeat(16 * 1024 * 1024 + 1));
-  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+test('report parsing rejects malformed JSON and oversized files with matching manifests', async t => {
+  const { folder, reporter } = await fixture(t);
+
+  const malformedFile = await reporter.prepareRun(IDS[0]);
+  await fs.writeFile(malformedFile, '{not-json');
+  await writeManifest(folder, IDS[0]);
+  await assert.rejects(
+    reporter.readRun(IDS[0], tokenFor(IDS[0]), 0),
+    /REPORT_INVALID/,
+  );
+
+  const oversizedFile = await reporter.prepareRun(IDS[1]);
+  await fs.writeFile(oversizedFile, 'x'.repeat(16 * 1024 * 1024 + 1));
+  await writeManifest(folder, IDS[1]);
+  await assert.rejects(
+    reporter.readRun(IDS[1], tokenFor(IDS[1]), 0),
+    /REPORT_INVALID/,
+  );
 });
 
 test('symlinked report directory is not accepted for reading', async t => {
@@ -149,7 +173,7 @@ test('symlinked report directory is not accepted for reading', async t => {
   t.after(async () => fs.rm(outside, { recursive: true, force: true }));
   await fs.rename(directory, path.join(outside, 'real-dir'));
   await fs.symlink(path.join(outside, 'real-dir'), directory, process.platform === 'win32' ? 'junction' : 'dir');
-  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+  await assert.rejects(reporter.readRun(IDS[0], tokenFor(IDS[0]), 0), /REPORT_INVALID/);
 });
 
 test('public summaries and classification never include raw reporter content', () => {
@@ -191,7 +215,7 @@ test('retention pruning ignores non-UUID names and symlinked run directories', a
 });
 
 test('report reader rejects a symlinked report file', async t => {
-  const { reporter } = await fixture(t);
+  const { folder, reporter } = await fixture(t);
   const file = await reporter.prepareRun(IDS[0]);
   const outside = path.join(path.dirname(file), 'outside.json');
   await fs.writeFile(outside, JSON.stringify(report(['expected'])));
@@ -205,7 +229,9 @@ test('report reader rejects a symlinked report file', async t => {
     }
     throw error;
   }
-  await assert.rejects(reporter.readRun(IDS[0], 0), /REPORT_INVALID/);
+  // The manifest must match the symlink target so the reader reaches the leaf-file check.
+  await writeManifest(folder, IDS[0]);
+  await assert.rejects(reporter.readRun(IDS[0], tokenFor(IDS[0]), 0), /REPORT_INVALID/);
 });
 
 

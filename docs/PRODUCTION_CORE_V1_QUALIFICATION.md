@@ -12,7 +12,7 @@ P4 is the final release gate for Production Core v1. A successful merge is not a
 | Browser smoke | Ubuntu, Chromium | `npm run test:browser-smoke` | All configured browser smoke tests pass |
 | Process lifecycle | Windows | `execution-process-tree.test.js` | Timeout and cancellation terminate parent and grandchild; cleanup failure never reports successful cancellation |
 | CLI compatibility | Windows | `cli-compatibility.test.js` | Legacy CLI entrypoints and report paths remain compatible |
-| Evidence security | Ubuntu + Windows | `run-report.test.js` | Retention, report bounds, symlink protections, and platform-specific permission assertions pass |
+| Evidence security | Ubuntu + Windows | `run-report.test.js`, `run-report-live.test.js` | Retention, report bounds, symlink protections, run-bound token + SHA-256 manifest validation, and platform-specific permission assertions pass |
 | Dependency security | Ubuntu, Node 22 | `npm audit --audit-level=moderate --include=dev` | No moderate-or-higher advisories |
 | Public contract | Ubuntu | Integration suite | Strict schemas; no process metadata, raw report data, paths, or secrets in public results |
 | Final source state | Git | Candidate commit SHA | All evidence belongs to the exact release candidate; no uncommitted or unreviewed changes |
@@ -20,10 +20,10 @@ P4 is the final release gate for Production Core v1. A successful merge is not a
 ## Explicit negative cases
 
 - A zero-test run must never be classified as PASSED.
-- Missing, malformed, oversized, stale, mismatched, or foreign run evidence must fail closed.
+- Missing, malformed, oversized, stale, mismatched, tampered, or foreign run evidence must fail closed; every execution-core run must receive a private token and a post-exit SHA-256 manifest.
 - A timeout/cancellation must remain non-terminal until child close and process-tree cleanup complete.
 - A failed process-tree cleanup must produce ERROR / PROCESS_CLEANUP_FAILED, not CANCELLED.
-- A concurrent start must not create a second active execution.\n- A real Playwright process started through the execution core must produce a per-run report and a matching structured terminal result.
+- A concurrent start must not create a second active execution.\n- A real Playwright process started through the execution core must run through `scripts/run-execution.js`, produce a per-run report and a matching token-bound SHA-256 manifest, and return a matching structured terminal result.
 - Invalid target paths and symlinked catalogue/report paths must be rejected.
 - Public results must not expose stdout, stderr, stack traces, process IDs, absolute paths, raw reporter content, or credentials.
 

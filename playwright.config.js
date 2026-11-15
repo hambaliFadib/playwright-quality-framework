@@ -12,6 +12,8 @@ const reporters = [
   ['html', { outputFolder: 'playwright-report', open: 'never' }],
   ['json', { outputFile: outputFileFromEnvironment(__dirname) }],
 ];
+
+
 if (isPqpReporterEnabled(pqpEvidenceOptIn)) reporters.push(['./src/integration/pqp-reporter.js']);
 
 const requestedBrowsers = new Set(
