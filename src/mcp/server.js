@@ -1,7 +1,7 @@
 'use strict';
 
 const { McpServer } = require('@modelcontextprotocol/server');
-const { StdioServerTransport } = require('@modelcontextprotocol/server/stdio');
+const { serveStdio } = require('@modelcontextprotocol/server/stdio');
 const { z } = require('zod');
 const core = require('../core/execution-core');
 const contract = require('../core/execution-contract');
@@ -99,9 +99,7 @@ function createMcpServer(executionCore = core) {
 
   return server;
 }
-async function startStdioServer() {
-  const server = createMcpServer();
-  await server.connect(new StdioServerTransport());
-  return server;
+function startStdioServer() {
+  return serveStdio(() => createMcpServer());
 }
 module.exports = { SERVER_INFO, createMcpServer, startStdioServer };
