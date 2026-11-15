@@ -102,6 +102,8 @@ async function main() {
   });
 }
 
+module.exports = { writeRunManifest };
+
 void main().catch(() => {
   process.exitCode = 1;
 });
