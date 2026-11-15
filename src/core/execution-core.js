@@ -319,7 +319,7 @@ function createExecutionCore(overrides = {}) {
 
     const args = [
       '--env-file-if-exists=' + path.join(dependencies.repositoryRoot, '.env'),
-      path.join(dependencies.repositoryRoot, 'scripts', 'run-execution.js'),
+      path.join(REPOSITORY_ROOT, 'scripts', 'run-execution.js'),
       dependencies.playwrightCliPath,
       'test',
       ...absoluteSpecPaths,
