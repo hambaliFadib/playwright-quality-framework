@@ -1,7 +1,6 @@
 const { defineConfig, devices } = require('@playwright/test');
 const { isPqpReporterEnabled, hasValidOptInValue } = require('./src/integration/pqp-reporter-config');
-const { outputFileFromEnvironment, isValidReportToken } = require('./src/core/run-report');
-const { RunIdSchema } = require('./src/core/execution-contract');
+const { outputFileFromEnvironment } = require('./src/core/run-report');
 
 const pqpEvidenceOptIn = process.env.PQF_EVIDENCE_ENABLED;
 if (!hasValidOptInValue(pqpEvidenceOptIn)) {
@@ -14,19 +13,6 @@ const reporters = [
   ['json', { outputFile: outputFileFromEnvironment(__dirname) }],
 ];
 
-const executionRunId = process.env.PQF_EXECUTION_RUN_ID;
-const executionReportToken = process.env.PQF_EXECUTION_REPORT_TOKEN;
-if (executionRunId !== undefined || executionReportToken !== undefined) {
-  if (!RunIdSchema.safeParse(executionRunId).success || !isValidReportToken(executionReportToken)) {
-    throw new Error('PQF execution report provenance context is invalid');
-  }
-  reporters.push(['./src/core/run-report-provenance-reporter.js', {
-    outputFile: outputFileFromEnvironment(__dirname),
-    repositoryRoot: __dirname,
-    runId: executionRunId,
-    reportToken: executionReportToken,
-  }]);
-}
 
 if (isPqpReporterEnabled(pqpEvidenceOptIn)) reporters.push(['./src/integration/pqp-reporter.js']);
 
