@@ -150,7 +150,7 @@ test('all five MCP tools exercise the real execution core through MCP protocol t
     available: true,
     result: {
       runId: RUN_ID, outcome: 'CANCELLED', startedAt: STARTED_AT,
-      finishedAt: '2026-11-16T00:00:00.002Z', durationMs: 1,
+      finishedAt: '2026-11-16T00:00:00.002Z', durationMs: 2,
       summary: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0 }, errorCode: null,
     },
   });
