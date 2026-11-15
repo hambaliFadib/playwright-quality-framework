@@ -8,6 +8,8 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { createRunReporter } = require('../../src/core/run-report');
+const { randomBytes } = require('node:crypto');
+const { writeRunManifest } = require('../../scripts/run-execution');
 
 const CLI = path.resolve(__dirname, '../../node_modules/@playwright/test/cli.js');
 const PACKAGE = require.resolve('@playwright/test');
@@ -25,6 +27,7 @@ async function runLive(t, runId, scenario) {
 
   const reporter = createRunReporter(root);
   const outputFile = await reporter.prepareRun(runId);
+  const reportToken = randomBytes(32).toString('hex');
   const specBody = scenario === 'pass'
     ? "test('passes', () => { expect(2 + 2).toBe(4); });"
     : scenario === 'fail'
@@ -64,7 +67,8 @@ async function runLive(t, runId, scenario) {
       else resolve(code);
     });
   });
-  return { result: await reporter.readRun(runId, exitCode), exitCode };
+  await writeRunManifest(root, runId, reportToken);
+  return { result: await reporter.readRun(runId, reportToken, exitCode), exitCode };
 }
 
 test('real Playwright JSON reporter evidence classifies PASS FAIL and SKIP', { timeout: 45_000 }, async t => {
