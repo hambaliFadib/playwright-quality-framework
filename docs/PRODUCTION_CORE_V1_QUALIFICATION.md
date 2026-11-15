@@ -23,7 +23,8 @@ P4 is the final release gate for Production Core v1. A successful merge is not a
 - Missing, malformed, oversized, stale, mismatched, tampered, or foreign run evidence must fail closed; every execution-core run must receive a private token and a post-exit SHA-256 manifest.
 - A timeout/cancellation must remain non-terminal until child close and process-tree cleanup complete.
 - A failed process-tree cleanup must produce ERROR / PROCESS_CLEANUP_FAILED, not CANCELLED.
-- A concurrent start must not create a second active execution.\n- A real Playwright process started through the execution core must run through `scripts/run-execution.js`, produce a per-run report and a matching token-bound SHA-256 manifest, and return a matching structured terminal result.
+- A concurrent start must not create a second active execution.
+- A real Playwright process started through the execution core must run through `scripts/run-execution.js`, produce a per-run report and a matching token-bound SHA-256 manifest, and return a matching structured terminal result.
 - Invalid target paths and symlinked catalogue/report paths must be rejected.
 - Public results must not expose stdout, stderr, stack traces, process IDs, absolute paths, raw reporter content, or credentials.
 
@@ -41,4 +42,18 @@ Excluded: MCP transport/adapter, package publication, hosted execution, persiste
 
 ## Known residual risk
 
-Windows file symlink rejection uses a pre-open filesystem check where Windows does not expose POSIX `O_NOFOLLOW`; this leaves a narrow TOCTOU race. This must remain documented in the release decision. If the security review considers the risk unacceptable, P4 is NO-GO until a Windows-safe handle/reparse-point strategy is implemented and qualified.
+Windows file symlink rejection uses a pre-open filesystem check where Windows does not expose POSIX `O_NOFOLLOW`; this leaves a narrow TOCTOU race.
+
+### Product Owner risk acceptance
+
+**Accepted for Production Core v1 on 2026-11-15**, limited to local execution in a trusted workspace.
+
+Conditions:
+- The workspace and evidence directories are writable only by the trusted user and trusted execution processes.
+- Do not use this acceptance for shared/multi-user workspaces, CI agents exposed to untrusted jobs, or environments where an untrusted process can modify evidence paths concurrently.
+- Keep the per-run token, SHA-256 manifest, path validation, and symlink checks enabled.
+- Reassess this risk before enabling shared or hosted execution.
+
+Residual impact: a local actor able to race filesystem changes may redirect a report read between the path check and file open. The accepted exposure is limited by the trusted-workspace boundary; this is not a claim that the TOCTOU race has been technically eliminated.
+
+A Windows-safe handle/reparse-point strategy remains a future hardening item. If the deployment threat model expands beyond the conditions above, this acceptance no longer applies and Production Core must be requalified before that deployment.
