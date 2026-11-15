@@ -3,10 +3,14 @@
 const fs = require('node:fs/promises');
 const fsConstants = require('node:fs').constants;
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const { RunIdSchema, RunSummarySchema } = require('./execution-contract');
 
 const REPORT_FILE_NAME = 'playwright-results.json';
 const MAX_REPORT_BYTES = 16 * 1024 * 1024;
+const MAX_MANIFEST_BYTES = 1_024;
+const MANIFEST_FILE_NAME = 'report-manifest.json';
+const REPORT_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
 const MAX_REPORT_TESTS = 1_000_000;
 const EVIDENCE_RETENTION_DAYS = 30;
 const EVIDENCE_RETENTION_MS = EVIDENCE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
@@ -14,6 +18,15 @@ const EVIDENCE_RETENTION_MS = EVIDENCE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 function runReportFile(repositoryRoot, runId) {
   if (!RunIdSchema.safeParse(runId).success) throw new Error('REPORT_INVALID');
   return path.join(repositoryRoot, 'artifacts', 'runs', runId, REPORT_FILE_NAME);
+}
+
+function runReportManifest(repositoryRoot, runId) {
+  if (!RunIdSchema.safeParse(runId).success) throw new Error('REPORT_INVALID');
+  return path.join(repositoryRoot, 'artifacts', 'runs', runId, MANIFEST_FILE_NAME);
+}
+
+function isValidReportToken(token) {
+  return typeof token === 'string' && REPORT_TOKEN_PATTERN.test(token);
 }
 
 function outputFileFromEnvironment(repositoryRoot, env = process.env) {
@@ -27,6 +40,24 @@ function outputFileFromEnvironment(repositoryRoot, env = process.env) {
 async function assertDirectory(directory) {
   const stat = await fs.lstat(directory);
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('REPORT_INVALID');
+}
+
+async function readBoundedFile(file, maxBytes) {
+  const leaf = await fs.lstat(file);
+  if (!leaf.isFile() || leaf.isSymbolicLink()) throw new Error('REPORT_INVALID');
+  const noFollow = fsConstants.O_NOFOLLOW || 0;
+  const handle = await fs.open(file, fsConstants.O_RDONLY | noFollow);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size === 0 || stat.size > maxBytes) {
+      throw new Error('REPORT_INVALID');
+    }
+    const content = await handle.readFile();
+    if (content.length === 0 || content.length > maxBytes) throw new Error('REPORT_INVALID');
+    return content;
+  } finally {
+    await handle.close();
+  }
 }
 
 async function pruneExpiredRunEvidence(repositoryRoot, now = Date.now()) {
@@ -137,30 +168,35 @@ function classifyReport(report, exitCode, signal = null) {
   return { outcome: 'PASSED', summary, errorCode: null };
 }
 
-async function readRun(repositoryRoot, runId, exitCode, signal = null) {
+async function readRun(repositoryRoot, runId, reportToken, exitCode, signal = null) {
+  if (!isValidReportToken(reportToken)) throw new Error('REPORT_INVALID');
   const file = runReportFile(repositoryRoot, runId);
+  const manifestFile = runReportManifest(repositoryRoot, runId);
   try {
     await assertDirectory(path.join(repositoryRoot, 'artifacts'));
     await assertDirectory(path.join(repositoryRoot, 'artifacts', 'runs'));
     await assertDirectory(path.dirname(file));
-    const leaf = await fs.lstat(file);
-    if (!leaf.isFile() || leaf.isSymbolicLink()) throw new Error('REPORT_INVALID');
-    const noFollow = fsConstants.O_NOFOLLOW || 0;
-    const handle = await fs.open(file, fsConstants.O_RDONLY | noFollow);
-    let content;
-    try {
-      const stat = await handle.stat();
-      if (!stat.isFile() || stat.size === 0 || stat.size > MAX_REPORT_BYTES) {
-        throw new Error('REPORT_INVALID');
-      }
-      content = await handle.readFile({ encoding: 'utf8' });
-      if (Buffer.byteLength(content, 'utf8') > MAX_REPORT_BYTES) {
-        throw new Error('REPORT_INVALID');
-      }
-    } finally {
-      await handle.close();
+
+    const manifestBytes = await readBoundedFile(manifestFile, MAX_MANIFEST_BYTES);
+    const manifest = JSON.parse(manifestBytes.toString('utf8'));
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+      throw new Error('REPORT_INVALID');
     }
-    return classifyReport(JSON.parse(content), exitCode, signal);
+    const manifestKeys = Object.keys(manifest).sort();
+    if (manifestKeys.join(',') !== 'reportSha256,reportToken,runId,version' ||
+        manifest.version !== 1 ||
+        manifest.runId !== runId ||
+        manifest.reportToken !== reportToken ||
+        typeof manifest.reportSha256 !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(manifest.reportSha256)) {
+      throw new Error('REPORT_INVALID');
+    }
+
+    const reportBytes = await readBoundedFile(file, MAX_REPORT_BYTES);
+    const reportDigest = createHash('sha256').update(reportBytes).digest('hex');
+    if (reportDigest !== manifest.reportSha256) throw new Error('REPORT_INVALID');
+
+    return classifyReport(JSON.parse(reportBytes.toString('utf8')), exitCode, signal);
   } catch {
     throw new Error('REPORT_INVALID');
   }
@@ -169,7 +205,7 @@ async function readRun(repositoryRoot, runId, exitCode, signal = null) {
 function createRunReporter(repositoryRoot) {
   return Object.freeze({
     prepareRun: runId => prepareRun(repositoryRoot, runId),
-    readRun: (runId, exitCode, signal) => readRun(repositoryRoot, runId, exitCode, signal),
+    readRun: (runId, reportToken, exitCode, signal) => readRun(repositoryRoot, runId, reportToken, exitCode, signal),
   });
 }
 
@@ -180,5 +216,11 @@ module.exports = {
   _prepareRun: prepareRun,
   _readRun: readRun,
   _runReportFile: runReportFile,
+  _runReportManifest: runReportManifest,
+  _readBoundedFile: readBoundedFile,
   _pruneExpiredRunEvidence: pruneExpiredRunEvidence,
+  isValidReportToken,
+  MAX_REPORT_BYTES,
+  MAX_MANIFEST_BYTES,
+  MANIFEST_FILE_NAME,
 };
