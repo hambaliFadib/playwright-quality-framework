@@ -23,19 +23,22 @@
     "integration:qualify:full": "node scripts/qualify-pqp-integration.js",
     "integration:qualify:e2e": "node scripts/qualify-pqp-e2e.js",
     "validate:framework": "npm run lint && npm run policy:check && npm run secret:check && npm run integration:selftest && npm run contract:ai && npm run policy:selftest && npm run triage:selftest",
-    "validate": "npm run validate:framework && npm run test:e2e"
+    "validate": "npm run validate:framework && npm run test:e2e",
+    "mcp:serve": "node scripts/run-mcp-server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@modelcontextprotocol/server": "2.4.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "^1.62.1",
     "eslint": "10.14.0",
-    "eslint-plugin-playwright": "^2.2.2"
+    "eslint-plugin-playwright": "^2.2.2",
+    "@modelcontextprotocol/client": "2.4.0"
   },
   "engines": {
     "node": ">=22.13.0 <23"
