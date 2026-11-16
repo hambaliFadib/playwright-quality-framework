@@ -20,6 +20,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Framework validation (no external AUT)
         run: npm run validate:framework
+      - name: MCP Inspector CLI interoperability qualification
+        run: npm run mcp:inspector:qualify
       - name: Chromium browser smoke
         run: npm run test:browser-smoke
       - uses: actions/upload-artifact@v4
@@ -62,6 +64,27 @@ jobs:
       - run: npm ci
       - name: Verify cancellation and timeout terminate parent and grandchild
         run: node --test tests/integration/execution-process-tree.test.js
+
+
+  windows-mcp-inspector:
+    name: Windows MCP Inspector path-with-spaces qualification
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}/workspace with spaces/pqf
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: workspace with spaces/pqf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: workspace with spaces/pqf/package-lock.json
+      - run: npm ci
+      - name: Verify MCP Inspector CLI from a path containing spaces
+        run: npm run mcp:inspector:qualify
 
   windows-cli-compatibility:
     name: Windows CLI compatibility qualification
