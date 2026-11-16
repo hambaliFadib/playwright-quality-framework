@@ -21,9 +21,9 @@ function runInspector(method, toolName, toolArgs) {
     '--yes',
     INSPECTOR_PACKAGE,
     '--cli',
+    '--quiet',
     'node',
     SERVER_ENTRY,
-    '--quiet',
     '--connect-timeout',
     '10000',
     '--method',
@@ -103,6 +103,6 @@ function main() {
 try {
   main();
 } catch (error) {
-  process.stderr.write((error && error.message) || 'MCP Inspector qualification failed.' + '\n');
+  process.stderr.write(((error && error.message) || 'MCP Inspector qualification failed.') + '\n');
   process.exitCode = 1;
 }
