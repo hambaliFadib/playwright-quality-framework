@@ -20,6 +20,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Framework validation (no external AUT)
         run: npm run validate:framework
+      - name: MCP Inspector CLI interoperability qualification
+        run: npm run mcp:inspector:qualify
       - name: Chromium browser smoke
         run: npm run test:browser-smoke
       - uses: actions/upload-artifact@v4
