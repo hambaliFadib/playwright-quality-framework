@@ -49,6 +49,7 @@ function runInspector(method, toolName, toolArgs) {
     timeout: 30_000,
     maxBuffer: 2 * 1024 * 1024,
     windowsHide: true,
+    shell: process.platform === 'win32',
   });
 
   if (result.error || result.status !== 0) {
