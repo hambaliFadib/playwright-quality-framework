@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
@@ -39,7 +40,19 @@ function runInspector(method, toolName, toolArgs) {
     args.push('--tool-args-json', JSON.stringify(toolArgs));
   }
 
-  const result = spawnSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
+  const npmExecPath = process.env.npm_execpath;
+  assert.ok(
+    npmExecPath,
+    'Run MCP Inspector qualification through npm so npm_execpath is available.',
+  );
+
+  const npxEntry = path.join(path.dirname(npmExecPath), 'npx-cli.js');
+  assert.ok(
+    fs.existsSync(npxEntry),
+    'The npx CLI entrypoint must exist beside the active npm CLI.',
+  );
+
+  const result = spawnSync(process.execPath, [npxEntry, ...args], {
     cwd: ROOT,
     encoding: 'utf8',
     env: {
@@ -49,7 +62,7 @@ function runInspector(method, toolName, toolArgs) {
     timeout: 30_000,
     maxBuffer: 2 * 1024 * 1024,
     windowsHide: true,
-    shell: process.platform === 'win32',
+    shell: false,
   });
 
   if (result.error || result.status !== 0) {
