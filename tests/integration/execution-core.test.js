@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const path = require('node:path');
 const { setImmediate: scheduleImmediate } = require('node:timers');
 const test = require('node:test');
 
@@ -15,6 +16,7 @@ const SPEC = {
   tests: [{ id: 'spec:auth/login.spec.js', relativePath: 'auth/login.spec.js' }],
 };
 const ABSOLUTE_SPEC = '/repo/tests/e2e/auth/login.spec.js';
+const ENV_FILE_ARGUMENT = '--env-file-if-exists=' + path.join('/repo', '.env');
 
 class FakeChild extends EventEmitter {
   constructor(pid) {
@@ -68,6 +70,7 @@ function createHarness(options = {}) {
 
   const spawnImpl = options.spawn || ((command, args, spawnOptions) => {
     spawnCalls.push({ command, args, options: spawnOptions });
+    if (options.onSpawn) options.onSpawn(command, args, spawnOptions);
     const child = new FakeChild(command === taskkillPath ? undefined : nextPid++);
     children.push(child);
     return child;
@@ -136,7 +139,7 @@ test('starts the fixed Node Playwright CLI asynchronously with shell disabled', 
   assert.equal(harness.spawnCalls.length, 1);
   assert.equal(harness.spawnCalls[0].command, '/usr/bin/node');
   assert.deepEqual(harness.spawnCalls[0].args, [
-    '--env-file-if-exists=/repo/.env',
+    ENV_FILE_ARGUMENT,
     require.resolve('../../scripts/run-execution.js'),
     '/repo/node_modules/@playwright/test/cli.js',
     'test',
@@ -159,7 +162,7 @@ test('loads only the fixed repository .env file while preserving inherited envir
   await start(harness);
   const invocation = harness.spawnCalls[0];
   assert.equal(invocation.command, '/usr/bin/node');
-  assert.equal(invocation.args[0], '--env-file-if-exists=/repo/.env');
+  assert.equal(invocation.args[0], ENV_FILE_ARGUMENT);
   assert.equal(invocation.options.env.BASE_URL, 'https://example.invalid');
   assert.equal(invocation.args.some(arg => arg.includes('.env.ai')), false);
   assert.equal(invocation.options.shell, false);
@@ -176,6 +179,41 @@ test('revalidates resolved files immediately before spawning', async () => {
   await start(harness);
   assert.equal(revalidated, true);
   assert.equal(harness.spawnCalls.length, 1);
+});
+
+test('normalizes Windows absolute spec filters after revalidation and before spawning', async () => {
+  const resolvedPaths = [
+    'D:\\repo\\tests\\e2e\\auth\\login.spec.js',
+    'D:\\repo\\tests\\e2e\\reports\\export.spec.js',
+  ];
+  const events = [];
+  const harness = createHarness({
+    platform: 'win32',
+    revalidate: async () => {
+      events.push('revalidate');
+      return resolvedPaths;
+    },
+    onSpawn: () => events.push('spawn'),
+  });
+
+  await start(harness);
+
+  assert.deepEqual(events, ['revalidate', 'spawn']);
+  assert.equal(harness.spawnCalls[0].args[4], 'D:/repo/tests/e2e/auth/login.spec.js');
+  assert.equal(harness.spawnCalls[0].args[5], 'D:/repo/tests/e2e/reports/export.spec.js');
+  assert.deepEqual(resolvedPaths, [
+    'D:\\repo\\tests\\e2e\\auth\\login.spec.js',
+    'D:\\repo\\tests\\e2e\\reports\\export.spec.js',
+  ]);
+  assert.equal(harness.spawnCalls[0].options.shell, false);
+});
+
+test('preserves absolute spec filter paths on macOS', async () => {
+  const harness = createHarness({ platform: 'darwin' });
+
+  await start(harness);
+
+  assert.equal(harness.spawnCalls[0].args[4], ABSOLUTE_SPEC);
 });
 
 test('does not spawn when execution-time filesystem revalidation fails', async () => {
