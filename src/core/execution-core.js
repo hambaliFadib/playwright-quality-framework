@@ -317,12 +317,15 @@ function createExecutionCore(overrides = {}) {
       return publicError('REPORT_INVALID');
     }
 
+    const playwrightSpecPaths = dependencies.platform === 'win32'
+      ? absoluteSpecPaths.map(specPath => specPath.replace(/\\/g, '/'))
+      : absoluteSpecPaths;
     const args = [
       '--env-file-if-exists=' + path.join(dependencies.repositoryRoot, '.env'),
       path.join(REPOSITORY_ROOT, 'scripts', 'run-execution.js'),
       dependencies.playwrightCliPath,
       'test',
-      ...absoluteSpecPaths,
+      ...playwrightSpecPaths,
       '--project=chromium',
       '--workers=1',
       '--retries=0',
