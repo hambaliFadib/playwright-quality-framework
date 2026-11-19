@@ -31,6 +31,7 @@ test('MCP stdio server performs handshake, advertises five tools, and routes val
         { id: 'spec:auth/login.spec.js', relativePath: 'auth/login.spec.js' },
         { id: 'spec:cart/add-to-cart.spec.js', relativePath: 'cart/add-to-cart.spec.js' },
         { id: 'spec:cart/remove-from-cart.spec.js', relativePath: 'cart/remove-from-cart.spec.js' },
+        { id: 'spec:inventory/inventory.spec.js', relativePath: 'inventory/inventory.spec.js' },
       ],
     });
 

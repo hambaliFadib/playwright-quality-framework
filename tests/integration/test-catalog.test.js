@@ -51,17 +51,19 @@ function resolveAtRoot(target, rootPath) {
   return _resolveTestTargetAtRoot(target, rootPath, trustedRootFor(rootPath));
 }
 
-test('repository catalogue discovers only the three tracked E2E specs with stable POSIX IDs', async () => {
+test('repository catalogue discovers only the four tracked E2E specs with stable POSIX IDs', async () => {
   const catalog = await listTests();
   assert.deepEqual(catalog.tests.map(item => item.id), [
     'spec:auth/login.spec.js',
     'spec:cart/add-to-cart.spec.js',
     'spec:cart/remove-from-cart.spec.js',
+    'spec:inventory/inventory.spec.js',
   ]);
   assert.deepEqual(catalog.tests.map(item => item.relativePath), [
     'auth/login.spec.js',
     'cart/add-to-cart.spec.js',
     'cart/remove-from-cart.spec.js',
+    'inventory/inventory.spec.js',
   ]);
 });
 
